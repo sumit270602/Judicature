@@ -8,5 +8,6 @@ router.use('/upload', require('./upload'));
 router.use('/chat', require('./chat'));
 router.use('/ai', require('./ai'));
 router.use('/verification', require('./verification'));
+router.use('/recommendations', require('./recommendations'));
 
 module.exports = router; 

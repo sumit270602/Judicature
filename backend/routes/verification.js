@@ -9,7 +9,7 @@ const {
   getVerificationDetails
 } = require('../controllers/verificationController');
 const auth = require('../middleware/auth');
-const { requireRole } = require('../middleware/roles');
+const requireRole = require('../middleware/roles');
 
 // Lawyer verification routes (protected, lawyer-only)
 router.post('/submit', auth, requireRole(['lawyer']), submitVerificationDocuments);

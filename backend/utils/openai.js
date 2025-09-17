@@ -15,4 +15,5 @@ async function askOpenAI({ prompt, model = 'gpt-3.5-turbo', max_tokens = 512, te
   return response.choices[0].message.content;
 }
 
-module.exports = { askOpenAI }; 
+// Export the openai client for embeddings
+module.exports = { askOpenAI, openai }; 

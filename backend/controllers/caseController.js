@@ -1,4 +1,5 @@
 const Case = require('../models/Case');
+const { updateLawyerVector } = require('./recommendationController');
 
 exports.createCase = async (req, res) => {
   try {
@@ -146,6 +147,24 @@ exports.updateCase = async (req, res) => {
       updates, 
       { new: true, runValidators: true }
     ).populate('client lawyer', 'name email role');
+    
+    // Update lawyer's Redis vector if case status changed to "closed" and lawyer won
+    if (updates.status === 'closed' && updated.lawyer) {
+      try {
+        const User = require('../models/User');
+        const lawyer = await User.findById(updated.lawyer._id);
+        if (lawyer && lawyer.role === 'lawyer') {
+          // Increment cases won count
+          lawyer.casesWon = (lawyer.casesWon || 0) + 1;
+          await lawyer.save();
+          
+          // Update Redis vector with new case count
+          await updateLawyerVector(lawyer._id.toString(), lawyer);
+        }
+      } catch (vectorError) {
+        console.error('Error updating lawyer vector after case win:', vectorError);
+      }
+    }
     
     res.json({ 
       success: true, 

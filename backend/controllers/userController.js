@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { updateLawyerVector } = require('./recommendationController');
 
 exports.getUsers = async (req, res) => {
   try {
@@ -23,6 +24,12 @@ exports.updateUser = async (req, res) => {
   try {
     const updated = await User.findByIdAndUpdate(req.params.id, req.body, { new: true }).select('-password');
     if (!updated) return res.status(404).json({ message: 'User not found' });
+    
+    // Update Redis vector if this is a lawyer
+    if (updated.role === 'lawyer') {
+      await updateLawyerVector(updated._id.toString(), updated);
+    }
+    
     res.json(updated);
   } catch (err) {
     res.status(500).json({ message: 'Server error' });

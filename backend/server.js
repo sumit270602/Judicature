@@ -9,6 +9,8 @@ const jwt = require('jsonwebtoken');
 const Message = require('./models/Message');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const chromaService = require('./utils/chroma');
+// const { initializeLawyerVectors } = require('./utils/vectorSync');
 
 // Load environment variables
 dotenv.config();
@@ -23,9 +25,6 @@ app.use('/api', apiRoutes);
 // app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
 
 
-
-
-
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
@@ -33,6 +32,17 @@ mongoose.connect(process.env.MONGO_URI, {
 })
   .then(() => console.log('MongoDB connected'))
   .catch((err) => console.error('MongoDB connection error:', err));
+
+// Initialize ChromaDB connection
+// chromaService.connect()
+//   .then(() => {
+//     console.log('ChromaDB connected for recommendations');
+//     // Initialize lawyer vectors after ChromaDB connection
+//     setTimeout(() => {
+//       initializeLawyerVectors();
+//     }, 2000);
+//   })
+//   .catch((err) => console.error('ChromaDB connection error:', err));
 
 // Health check route
 app.get('/', (req, res) => {
