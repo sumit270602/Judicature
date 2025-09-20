@@ -23,6 +23,8 @@ import TimeTracking from "./pages/TimeTracking";
 import NotFound from "./pages/NotFound";
 import ClientDashboard from "./pages/ClientDashboard";
 import LawyerDashboard from "./pages/LawyerDashboard";
+import MessagingDemo from "./pages/MessagingDemo";
+import AuthSuccess from "./pages/AuthSuccess";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +54,8 @@ const App = () => (
             <Route path="/time-tracking" element={<TimeTracking />} />
             <Route path="/dashboard/client" element={<ClientDashboard />} />
             <Route path="/dashboard/lawyer" element={<LawyerDashboard />} />
+            <Route path="/messaging" element={<MessagingDemo />} />
+            <Route path="/auth/success" element={<AuthSuccess />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

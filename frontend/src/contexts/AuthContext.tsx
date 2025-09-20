@@ -16,6 +16,7 @@ interface AuthContextType {
   loading: boolean;
   signUp: (name: string, email: string, password: string, role: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signInWithOAuth: (user: User, token: string) => void;
   signOut: () => void;
 }
 
@@ -99,6 +100,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signInWithOAuth = (user: User, authToken: string) => {
+    localStorage.setItem('token', authToken);
+    setToken(authToken);
+    setUser(user);
+    toast({ title: 'Login Successful', description: `Welcome back, ${user.name}!` });
+  };
+
   const signOut = () => {
     localStorage.removeItem('token');
     setToken(null);
@@ -112,6 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     signUp,
     signIn,
+    signInWithOAuth,
     signOut,
   };
 

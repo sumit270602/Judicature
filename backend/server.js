@@ -72,28 +72,99 @@ io.use((socket, next) => {
 });
 
 io.on('connection', (socket) => {
-  // Join a room (caseId)
+  console.log(`User ${socket.user.id} connected`);
+  
+  // Join user's personal room for direct messages
+  socket.join(`user_${socket.user.id}`);
+  
+  // Join case-based rooms (existing functionality)
   socket.on('join', ({ caseId }) => {
-    socket.join(caseId);
+    socket.join(`case_${caseId}`);
+    console.log(`User ${socket.user.id} joined case room: ${caseId}`);
   });
 
-  // Handle sending a message
+  // Handle DIRECT one-to-one messages
+  socket.on('direct_message', async ({ receiverId, message }) => {
+    try {
+      // Save direct message to database
+      const msg = new Message({
+        sender: socket.user.id,
+        receiver: receiverId,
+        messageType: 'direct',
+        message,
+      });
+      await msg.save();
+
+      // Send to specific receiver only
+      io.to(`user_${receiverId}`).emit('direct_message', {
+        _id: msg._id,
+        sender: msg.sender,
+        receiver: msg.receiver,
+        message: msg.message,
+        messageType: 'direct',
+        createdAt: msg.createdAt,
+      });
+
+      // Send confirmation back to sender
+      socket.emit('message_sent', {
+        _id: msg._id,
+        receiver: receiverId,
+        message: msg.message,
+        messageType: 'direct',
+        createdAt: msg.createdAt,
+      });
+
+    } catch (error) {
+      console.error('Direct message error:', error);
+      socket.emit('message_error', { error: 'Failed to send direct message' });
+    }
+  });
+
+  // Handle CASE-BASED group messages (enhanced existing functionality)
   socket.on('message', async ({ caseId, receiver, message }) => {
-    const msg = new Message({
-      sender: socket.user.id,
-      receiver,
-      caseId,
-      message,
-    });
-    await msg.save();
-    io.to(caseId).emit('message', {
-      _id: msg._id,
-      sender: msg.sender,
-      receiver: msg.receiver,
-      caseId: msg.caseId,
-      message: msg.message,
-      createdAt: msg.createdAt,
-    });
+    try {
+      const msg = new Message({
+        sender: socket.user.id,
+        receiver,
+        caseId,
+        messageType: 'case',
+        message,
+      });
+      await msg.save();
+
+      // Broadcast to all users in the case
+      io.to(`case_${caseId}`).emit('message', {
+        _id: msg._id,
+        sender: msg.sender,
+        receiver: msg.receiver,
+        caseId: msg.caseId,
+        message: msg.message,
+        messageType: 'case',
+        createdAt: msg.createdAt,
+      });
+
+    } catch (error) {
+      console.error('Case message error:', error);
+      socket.emit('message_error', { error: 'Failed to send case message' });
+    }
+  });
+
+  // Mark messages as read
+  socket.on('mark_read', async ({ messageId }) => {
+    try {
+      await Message.findByIdAndUpdate(messageId, {
+        isRead: true,
+        readAt: new Date()
+      });
+      socket.emit('message_read', { messageId });
+    } catch (error) {
+      console.error('Mark read error:', error);
+    }
+  });
+
+  // Handle user disconnect
+  socket.on('disconnect', () => {
+    console.log(`User ${socket.user.id} disconnected`);
   });
 });
 
