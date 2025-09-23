@@ -10,6 +10,7 @@ const Message = require('./models/Message');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const chromaService = require('./utils/chroma');
+const notificationService = require('./utils/notificationService');
 // const { initializeLawyerVectors } = require('./utils/vectorSync');
 
 // Load environment variables
@@ -30,7 +31,11 @@ mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-  .then(() => console.log('MongoDB connected'))
+  .then(() => {
+    console.log('MongoDB connected');
+    // Initialize notification service after database connection
+    notificationService.initialize();
+  })
   .catch((err) => console.error('MongoDB connection error:', err));
 
 // Initialize ChromaDB connection

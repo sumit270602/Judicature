@@ -9,5 +9,9 @@ router.use('/chat', require('./chat'));
 router.use('/ai', require('./ai'));
 router.use('/verification', require('./verification'));
 router.use('/recommendations', require('./recommendations'));
+router.use('/dashboard', require('./dashboard'));
+router.use('/documents', require('./documents'));
+router.use('/notifications', require('./notifications'));
+router.use('/search', require('./search'));
 
 module.exports = router; 

@@ -30,13 +30,21 @@ const caseSchema = new mongoose.Schema(
     // Status and Priority
     status: {
       type: String,
-      enum: ["open", "in_progress", "closed"],
+      enum: ["open", "in_progress", "closed", "active", "pending"], // Added active and pending
       default: "open",
     },
     priority: { 
       type: String, 
       enum: ["low", "medium", "high"], 
       default: "medium" 
+    },
+    
+    // Progress tracking (0-100)
+    progress: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0
     },
     
     // Important Dates
@@ -82,6 +90,27 @@ caseSchema.statics.findByClient = function(clientId) {
 
 caseSchema.statics.findByLawyer = function(lawyerId) {
   return this.find({ lawyer: lawyerId }).populate('client', 'name email');
+};
+
+// Virtual to map nextHearingDate to nextHearing for frontend compatibility
+caseSchema.virtual('nextHearing').get(function() {
+  return this.nextHearingDate;
+});
+
+// Transform status for frontend compatibility
+caseSchema.methods.toJSON = function() {
+  const obj = this.toObject();
+  
+  // Map old status values to new ones for frontend
+  if (obj.status === 'open') obj.status = 'pending';
+  if (obj.status === 'in_progress') obj.status = 'active';
+  
+  // Add nextHearing field if nextHearingDate exists
+  if (obj.nextHearingDate) {
+    obj.nextHearing = obj.nextHearingDate;
+  }
+  
+  return obj;
 };
 
 module.exports = mongoose.model("Case", caseSchema);
