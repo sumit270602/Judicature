@@ -1,94 +1,14 @@
 const User = require('../models/User');
-const cloudinary = require('../utils/cloudinary');
-
-// Submit verification documents
-const submitVerificationDocuments = async (req, res) => {
-  try {
-    const { documents } = req.body;
-    const userId = req.user.id;
-
-    // Check if user is a lawyer
-    const user = await User.findById(userId);
-    if (!user || user.role !== 'lawyer') {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Only lawyers can submit verification documents' 
-      });
-    }
-
-    // Check if already verified
-    if (user.verificationStatus === 'verified') {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'User is already verified' 
-      });
-    }
-
-    // Validate documents array
-    if (!documents || !Array.isArray(documents) || documents.length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'At least one document is required' 
-      });
-    }
-
-    // Validate document types
-    const allowedTypes = ['bar_certificate', 'license', 'identity', 'practice_certificate'];
-    const invalidDocs = documents.filter(doc => !allowedTypes.includes(doc.type));
-    
-    if (invalidDocs.length > 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid document types provided' 
-      });
-    }
-
-    // Update user with new documents
-    const newDocuments = documents.map(doc => ({
-      type: doc.type,
-      url: doc.url,
-      originalName: doc.originalName || 'Document',
-      uploadedAt: new Date(),
-      status: 'pending'
-    }));
-
-    // Remove existing documents of the same type
-    user.verificationDocuments = user.verificationDocuments.filter(
-      existingDoc => !documents.some(newDoc => newDoc.type === existingDoc.type)
-    );
-
-    // Add new documents
-    user.verificationDocuments.push(...newDocuments);
-    user.verificationStatus = 'under_review';
-    user.verificationRequestedAt = new Date();
-
-    await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'Documents submitted successfully for verification',
-      data: {
-        verificationStatus: user.verificationStatus,
-        documentsUploaded: newDocuments.length,
-        progress: user.getVerificationProgress()
-      }
-    });
-
-  } catch (error) {
-    console.error('Submit verification documents error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error during document submission' 
-    });
-  }
-};
 
 // Get verification status
 const getVerificationStatus = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const user = await User.findById(userId).select('-password');
+    const user = await User.findById(userId)
+      .select('-password')
+      .populate('verificationDocuments');
+    
     if (!user) {
       return res.status(404).json({ 
         success: false, 
@@ -103,19 +23,26 @@ const getVerificationStatus = async (req, res) => {
       });
     }
 
+    const Document = require('../models/Document');
+    const documents = await Document.getUserVerificationDocuments(userId);
+    const progress = await user.getVerificationProgress();
+
     const verificationData = {
       status: user.verificationStatus,
       isVerified: user.isVerified,
-      documents: user.verificationDocuments.map(doc => ({
-        type: doc.type,
+      documents: documents.map(doc => ({
+        id: doc._id,
+        type: doc.documentType,
         originalName: doc.originalName,
         uploadedAt: doc.uploadedAt,
-        status: doc.status
+        status: doc.approvalStatus,
+        reviewNotes: doc.reviewNotes,
+        reviewedAt: doc.reviewedAt
       })),
       verificationNotes: user.verificationNotes,
       verifiedAt: user.verifiedAt,
       verificationRequestedAt: user.verificationRequestedAt,
-      progress: user.getVerificationProgress()
+      progress: progress
     };
 
     res.status(200).json({
@@ -381,7 +308,6 @@ const getVerificationDetails = async (req, res) => {
 };
 
 module.exports = {
-  submitVerificationDocuments,
   getVerificationStatus,
   getPendingVerifications,
   approveVerification,

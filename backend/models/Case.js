@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const caseSchema = new mongoose.Schema(
   {
     // Basic Case Information
-    caseNumber: { type: String, unique: true, required: true },
+    caseNumber: { type: String, unique: true, required: false }, // Auto-generated, so not required in validation
     title: { type: String, required: true },
     description: { type: String, required: true },
     
@@ -44,13 +44,10 @@ const caseSchema = new mongoose.Schema(
     dateClosed: { type: Date },
     nextHearingDate: { type: Date },
     
-    // Simple File Storage
-    files: [{
-      filename: { type: String, required: true },
-      originalName: { type: String, required: true },
-      cloudinaryUrl: { type: String },
-      uploadDate: { type: Date, default: Date.now },
-      uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }
+    // Document References
+    documents: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Document'
     }],
     
     // Simple Notes
@@ -68,10 +65,26 @@ const caseSchema = new mongoose.Schema(
 // Pre-save middleware to generate case number
 caseSchema.pre('save', async function(next) {
   if (this.isNew && !this.caseNumber) {
-    const count = await mongoose.model('Case').countDocuments();
-    const year = new Date().getFullYear();
-    this.caseNumber = `CASE-${year}-${(count + 1).toString().padStart(4, '0')}`;
+    try {
+      // Use this.constructor instead of mongoose.model to avoid circular dependency
+      const count = await this.constructor.countDocuments();
+      const year = new Date().getFullYear();
+      this.caseNumber = `CASE-${year}-${(count + 1).toString().padStart(4, '0')}`;
+    } catch (error) {
+      console.error('Error generating case number:', error);
+      // Fallback: use timestamp-based case number
+      const timestamp = Date.now();
+      const year = new Date().getFullYear();
+      this.caseNumber = `CASE-${year}-${timestamp.toString().slice(-4)}`;
+    }
   }
+  
+  // Ensure caseNumber exists
+  if (!this.caseNumber) {
+    const error = new Error('Case number is required but could not be generated');
+    return next(error);
+  }
+  
   next();
 });
 

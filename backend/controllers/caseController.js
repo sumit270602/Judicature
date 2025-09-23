@@ -27,7 +27,13 @@ exports.createCase = async (req, res) => {
       }
     }
 
+    // Generate case number if not provided
+    const count = await Case.countDocuments();
+    const year = new Date().getFullYear();
+    const caseNumber = `CASE-${year}-${(count + 1).toString().padStart(4, '0')}`;
+
     const newCase = new Case({
+      caseNumber,
       title: title.trim(),
       description: description.trim(),
       caseType,
