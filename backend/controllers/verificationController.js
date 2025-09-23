@@ -6,8 +6,7 @@ const getVerificationStatus = async (req, res) => {
     const userId = req.user.id;
 
     const user = await User.findById(userId)
-      .select('-password')
-      .populate('verificationDocuments');
+      .select('-password');
     
     if (!user) {
       return res.status(404).json({ 
@@ -24,25 +23,23 @@ const getVerificationStatus = async (req, res) => {
     }
 
     const Document = require('../models/Document');
-    const documents = await Document.getUserVerificationDocuments(userId);
-    const progress = await user.getVerificationProgress();
+    const documents = await Document.find({ 
+      uploadedBy: userId, 
+      isVerificationDoc: true 
+    }).sort({ createdAt: -1 });
 
     const verificationData = {
       status: user.verificationStatus,
-      isVerified: user.isVerified,
       documents: documents.map(doc => ({
         id: doc._id,
         type: doc.documentType,
         originalName: doc.originalName,
-        uploadedAt: doc.uploadedAt,
-        status: doc.approvalStatus,
+        uploadedAt: doc.createdAt,
+        status: doc.status,
         reviewNotes: doc.reviewNotes,
         reviewedAt: doc.reviewedAt
       })),
-      verificationNotes: user.verificationNotes,
-      verifiedAt: user.verifiedAt,
-      verificationRequestedAt: user.verificationRequestedAt,
-      progress: progress
+      verificationRequestedAt: user.createdAt
     };
 
     res.status(200).json({
@@ -141,16 +138,6 @@ const approveVerification = async (req, res) => {
 
     // Update verification status
     lawyer.verificationStatus = 'verified';
-    lawyer.isVerified = true;
-    lawyer.verifiedAt = new Date();
-    lawyer.verifiedBy = req.user.id;
-    lawyer.verificationNotes = notes || 'Verification approved';
-    
-    // Mark all documents as approved
-    lawyer.verificationDocuments.forEach(doc => {
-      doc.status = 'approved';
-    });
-
     await lawyer.save();
 
     res.status(200).json({
@@ -212,23 +199,6 @@ const rejectVerification = async (req, res) => {
 
     // Update verification status
     lawyer.verificationStatus = 'rejected';
-    lawyer.isVerified = false;
-    lawyer.verificationNotes = notes;
-    
-    // Mark specific documents as rejected if provided
-    if (rejectedDocuments && Array.isArray(rejectedDocuments)) {
-      lawyer.verificationDocuments.forEach(doc => {
-        if (rejectedDocuments.includes(doc.type)) {
-          doc.status = 'rejected';
-        }
-      });
-    } else {
-      // Mark all documents as rejected
-      lawyer.verificationDocuments.forEach(doc => {
-        doc.status = 'rejected';
-      });
-    }
-
     await lawyer.save();
 
     res.status(200).json({
@@ -288,11 +258,6 @@ const getVerificationDetails = async (req, res) => {
           practiceAreas: lawyer.practiceAreas,
           experience: lawyer.experience,
           verificationStatus: lawyer.verificationStatus,
-          documents: lawyer.verificationDocuments,
-          verificationNotes: lawyer.verificationNotes,
-          verifiedAt: lawyer.verifiedAt,
-          verifiedBy: lawyer.verifiedBy,
-          verificationRequestedAt: lawyer.verificationRequestedAt,
           createdAt: lawyer.createdAt
         }
       }

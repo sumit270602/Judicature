@@ -14,7 +14,7 @@ const {
 router.post(
   "/verification/upload",
   auth,
-  upload.single("document"),
+  upload.single("document"), // Back to "document"
   uploadVerificationDoc
 );
 

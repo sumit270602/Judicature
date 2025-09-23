@@ -7,50 +7,45 @@ const multer = require('multer');
 const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
-    cb(null, allowedTypes.includes(file.mimetype));
-  }
+  limits: { fileSize: 10 * 1024 * 1024 } // 10 MB
 });
 
 // Upload verification document (for lawyers)
 const uploadVerificationDoc = async (req, res) => {
   try {
-    if (req.user.role !== 'lawyer') {
-      return res.status(403).json({ message: 'Only lawyers can upload verification documents' });
-    }
-
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
     const { documentType } = req.body;
-    if (!['bar_certificate', 'license', 'identity'].includes(documentType)) {
-      return res.status(400).json({ message: 'Invalid document type' });
-    }
+
+    // Generate unique filename
+    const timestamp = Date.now();
+    const fileName = `${req.user.id}_${documentType}_${timestamp}`;
 
     const document = new Document({
       originalName: req.file.originalname,
+      fileName: fileName,
       mimeType: req.file.mimetype,
       fileSize: req.file.size,
       fileData: req.file.buffer,
-      documentType: documentType,
+      documentType: documentType || 'verification_document',
       isVerificationDoc: true,
       uploadedBy: req.user.id
     });
 
     await document.save();
 
-    res.status(201).json({
+    res.json({
       success: true,
-      message: 'Document uploaded successfully',
+      message: 'Document uploaded',
       documentId: document._id
     });
 
   } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ message: 'Server error' });
+    // res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message });
+
   }
 };
 
@@ -81,8 +76,13 @@ const uploadCaseDoc = async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
+    // Generate unique filename
+    const timestamp = Date.now();
+    const fileName = `case_${caseId}_${req.user.id}_${timestamp}`;
+
     const document = new Document({
       originalName: req.file.originalname,
+      fileName: fileName,
       mimeType: req.file.mimetype,
       fileSize: req.file.size,
       fileData: req.file.buffer,
@@ -138,11 +138,13 @@ const getUserDocs = async (req, res) => {
 const getCaseDocs = async (req, res) => {
   try {
     const { caseId } = req.params;
+    console.log('Getting docs for case ID:', caseId);
 
     const caseItem = await Case.findById(caseId);
     if (!caseItem) {
       return res.status(404).json({ message: 'Case not found' });
     }
+    console.log('Case found:', caseItem.title, 'Documents in case:', caseItem.documents.length);
 
     // Check permission
     const hasPermission = 
@@ -155,11 +157,21 @@ const getCaseDocs = async (req, res) => {
     }
 
     const documents = await Document.getCaseDocs(caseId);
+    console.log('Documents found by getCaseDocs:', documents.length);
     
-    // Filter documents based on user role
+    // Also check documents by direct query for debugging
+    const directDocuments = await Document.find({ relatedCase: caseId });
+    console.log('Documents found by direct query:', directDocuments.length);
+    
+    // Filter documents based on user role and ownership
     const filteredDocs = req.user.role === 'admin' 
       ? documents // Admins see all documents
-      : documents.filter(doc => doc.status === 'approved'); // Users only see approved docs
+      : documents.filter(doc => 
+          doc.status === 'approved' || // Approved docs visible to all case participants
+          doc.uploadedBy._id.toString() === req.user.id // Users can see their own uploads
+        );
+    
+    console.log('Filtered documents:', filteredDocs.length);
     
     res.json({
       success: true,
@@ -173,8 +185,7 @@ const getCaseDocs = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get case docs error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 

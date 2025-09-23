@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const documentSchema = new mongoose.Schema({
   // Basic file info
   originalName: { type: String, required: true },
+  fileName: { type: String, unique: true }, // For database index compatibility
   mimeType: { type: String, required: true },
   fileSize: { type: Number, required: true, max: 10485760 }, // 10MB
   fileData: { type: Buffer, required: true },
@@ -10,7 +11,6 @@ const documentSchema = new mongoose.Schema({
   // Document classification
   documentType: {
     type: String,
-    enum: ['bar_certificate', 'license', 'identity', 'case_document'],
     required: true
   },
   isVerificationDoc: { type: Boolean, default: false },

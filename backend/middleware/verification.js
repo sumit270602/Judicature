@@ -33,8 +33,7 @@ const requireVerifiedLawyer = async (req, res, next) => {
       return res.status(403).json({ 
         success: false, 
         message: 'Lawyer verification required to perform this action',
-        verificationStatus: user.verificationStatus,
-        verificationProgress: user.getVerificationProgress()
+        verificationStatus: user.verificationStatus
       });
     }
 
@@ -80,8 +79,7 @@ const checkVerificationStatus = async (req, res, next) => {
     // Add verification info to request
     req.verificationInfo = {
       status: user.verificationStatus,
-      canTakeCases: user.canTakeCases(),
-      progress: user.getVerificationProgress()
+      canTakeCases: user.canTakeCases()
     };
 
     next();

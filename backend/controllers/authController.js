@@ -52,9 +52,7 @@ exports.register = async (req, res) => {
         email: user.email, 
         role: user.role,
         verificationStatus: user.verificationStatus,
-        isVerified: user.isVerified,
-        canTakeCases: user.canTakeCases(),
-        verificationProgress: user.role === 'lawyer' ? user.getVerificationProgress() : null
+        canTakeCases: user.canTakeCases()
       } 
     });
   } catch (err) {
@@ -106,11 +104,8 @@ exports.login = async (req, res) => {
           role: user.role,
           phone: user.phone,
           address: user.address,
-          isVerified: user.isVerified,
           verificationStatus: user.verificationStatus,
-          canTakeCases: false,
-          verificationProgress: user.getVerificationProgress(),
-          verificationNotes: user.verificationNotes
+          canTakeCases: false
         },
         message: 'Login successful, but verification was rejected. Please resubmit documents.'
       });
@@ -134,10 +129,8 @@ exports.login = async (req, res) => {
         role: user.role,
         phone: user.phone,
         address: user.address,
-        isVerified: user.isVerified,
         verificationStatus: user.verificationStatus,
-        canTakeCases: user.canTakeCases(),
-        verificationProgress: user.role === 'lawyer' ? user.getVerificationProgress() : null
+        canTakeCases: user.canTakeCases()
       } 
     });
   } catch (err) {

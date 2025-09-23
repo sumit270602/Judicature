@@ -47,7 +47,7 @@ exports.createCase = async (req, res) => {
     // Populate the response
     const populatedCase = await Case.findById(newCase._id)
       .populate('client', 'name email role')
-      .populate('lawyer', 'name email role verificationStatus isVerified');
+      .populate('lawyer', 'name email role verificationStatus');
     
     res.status(201).json({ 
       success: true, 
