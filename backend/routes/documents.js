@@ -327,4 +327,163 @@ router.post('/search', auth, async (req, res) => {
   }
 });
 
+// Compatibility endpoints from remote version
+
+// Upload verification document (for lawyers)
+router.post('/verification/upload', auth, upload.single('document'), async (req, res) => {
+  try {
+    const { documentType } = req.body;
+    const file = req.file;
+    
+    if (!file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+    
+    // Upload to Cloudinary
+    const result = await cloudinary.uploader.upload(file.path, {
+      resource_type: 'auto',
+      folder: 'judicature/verification',
+      use_filename: true,
+      unique_filename: true
+    });
+    
+    // Save verification document
+    const document = new Document({
+      filename: result.public_id,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+      cloudinaryUrl: result.secure_url,
+      uploadedBy: req.user.id,
+      documentType: documentType || 'verification',
+      isVerificationDoc: true,
+      status: 'pending'
+    });
+    
+    await document.save();
+    
+    res.status(201).json({ 
+      success: true, 
+      message: 'Verification document uploaded successfully',
+      document 
+    });
+  } catch (error) {
+    console.error('Verification document upload error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to upload verification document',
+      error: error.message 
+    });
+  }
+});
+
+// Upload case document (compatibility)
+router.post('/case/upload', auth, upload.single('document'), async (req, res) => {
+  try {
+    const { caseId, documentType } = req.body;
+    const file = req.file;
+    
+    if (!file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+    
+    if (!caseId) {
+      return res.status(400).json({ message: 'Case ID is required' });
+    }
+    
+    // Upload to Cloudinary
+    const result = await cloudinary.uploader.upload(file.path, {
+      resource_type: 'auto',
+      folder: 'judicature/cases',
+      use_filename: true,
+      unique_filename: true
+    });
+    
+    // Save case document
+    const document = new Document({
+      filename: result.public_id,
+      originalName: file.originalname,
+      mimeType: file.mimetype,
+      size: file.size,
+      cloudinaryUrl: result.secure_url,
+      uploadedBy: req.user.id,
+      relatedCase: caseId,
+      documentType: documentType || 'case',
+      isVerificationDoc: false
+    });
+    
+    await document.save();
+    await document.populate('relatedCase', 'title caseNumber');
+    
+    res.status(201).json({ 
+      success: true, 
+      message: 'Case document uploaded successfully',
+      document 
+    });
+  } catch (error) {
+    console.error('Case document upload error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to upload case document',
+      error: error.message 
+    });
+  }
+});
+
+// Get my documents (compatibility)
+router.get('/my-documents', auth, async (req, res) => {
+  try {
+    const documents = await Document.getUserDocuments(req.user.id);
+    
+    res.json({
+      success: true,
+      documents
+    });
+  } catch (error) {
+    console.error('Get my documents error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to retrieve documents',
+      error: error.message 
+    });
+  }
+});
+
+// Download document (compatibility)
+router.get('/download/:documentId', auth, async (req, res) => {
+  try {
+    const document = await Document.findById(req.params.documentId);
+    
+    if (!document) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Document not found' 
+      });
+    }
+    
+    // Check access permissions
+    if (document.isPrivate && 
+        document.uploadedBy.toString() !== req.user.id && 
+        req.user.role !== 'admin') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Access denied to private document' 
+      });
+    }
+    
+    // Increment download count
+    await document.incrementDownload();
+    
+    // Redirect to Cloudinary URL for download
+    res.redirect(document.cloudinaryUrl);
+  } catch (error) {
+    console.error('Download document error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to download document',
+      error: error.message 
+    });
+  }
+});
+
 module.exports = router;

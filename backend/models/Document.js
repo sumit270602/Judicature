@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const documentSchema = new mongoose.Schema({
+  // Basic file info (enhanced from both versions)
   filename: { 
     type: String, 
     required: true 
@@ -15,12 +16,25 @@ const documentSchema = new mongoose.Schema({
   },
   size: { 
     type: Number, 
-    required: true 
+    required: true,
+    max: 10485760 // 10MB limit from remote version
   },
   cloudinaryUrl: { 
     type: String, 
     required: true 
   },
+  
+  // Document classification (from remote version)
+  documentType: {
+    type: String,
+    required: true
+  },
+  isVerificationDoc: { 
+    type: Boolean, 
+    default: false 
+  },
+  
+  // Relationships
   uploadedBy: { 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'User', 
@@ -30,6 +44,8 @@ const documentSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Case' 
   },
+  
+  // Document metadata
   tags: [String],
   isPrivate: { 
     type: Boolean, 
@@ -41,10 +57,20 @@ const documentSchema = new mongoose.Schema({
   },
   status: { 
     type: String, 
-    enum: ['pending', 'processed', 'approved'], 
+    enum: ['pending', 'processed', 'approved', 'rejected'], 
     default: 'pending' 
   },
-  // AI Analysis Results
+  
+  // Review information (from remote version)
+  reviewedBy: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User' 
+  },
+  reviewNotes: { 
+    type: String 
+  },
+  
+  // AI Analysis Results (our comprehensive version)
   aiAnalysis: {
     summary: String,
     keyPoints: [String],
@@ -53,12 +79,14 @@ const documentSchema = new mongoose.Schema({
     confidenceScore: Number,
     analyzedAt: Date
   },
-  // Document metadata
+  
+  // Access tracking
   downloadCount: { 
     type: Number, 
     default: 0 
   },
   lastAccessedAt: Date,
+  
   // Version control
   parentDocument: { 
     type: mongoose.Schema.Types.ObjectId, 
@@ -72,13 +100,14 @@ const documentSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes for performance
+// Indexes for performance (enhanced from our version)
 documentSchema.index({ uploadedBy: 1, createdAt: -1 });
 documentSchema.index({ relatedCase: 1, createdAt: -1 });
 documentSchema.index({ tags: 1 });
 documentSchema.index({ filename: 'text', originalName: 'text' });
+documentSchema.index({ documentType: 1 });
 
-// Static methods
+// Static methods (combined from both versions)
 documentSchema.statics.getUserDocuments = function(userId) {
   return this.find({ uploadedBy: userId })
     .sort({ createdAt: -1 })
@@ -89,6 +118,12 @@ documentSchema.statics.getCaseDocuments = function(caseId) {
   return this.find({ relatedCase: caseId })
     .sort({ createdAt: -1 })
     .populate('uploadedBy', 'name email');
+};
+
+documentSchema.statics.getPendingDocs = function() {
+  return this.find({ status: 'pending' })
+    .populate('uploadedBy', 'name email')
+    .sort({ createdAt: 1 });
 };
 
 documentSchema.statics.searchDocuments = function(userId, query) {
@@ -102,7 +137,7 @@ documentSchema.statics.searchDocuments = function(userId, query) {
   }).sort({ createdAt: -1 });
 };
 
-// Instance methods
+// Instance methods (from our comprehensive version)
 documentSchema.methods.incrementDownload = function() {
   this.downloadCount += 1;
   this.lastAccessedAt = new Date();

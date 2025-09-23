@@ -1,94 +1,13 @@
 const User = require('../models/User');
-const cloudinary = require('../utils/cloudinary');
-
-// Submit verification documents
-const submitVerificationDocuments = async (req, res) => {
-  try {
-    const { documents } = req.body;
-    const userId = req.user.id;
-
-    // Check if user is a lawyer
-    const user = await User.findById(userId);
-    if (!user || user.role !== 'lawyer') {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Only lawyers can submit verification documents' 
-      });
-    }
-
-    // Check if already verified
-    if (user.verificationStatus === 'verified') {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'User is already verified' 
-      });
-    }
-
-    // Validate documents array
-    if (!documents || !Array.isArray(documents) || documents.length === 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'At least one document is required' 
-      });
-    }
-
-    // Validate document types
-    const allowedTypes = ['bar_certificate', 'license', 'identity', 'practice_certificate'];
-    const invalidDocs = documents.filter(doc => !allowedTypes.includes(doc.type));
-    
-    if (invalidDocs.length > 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid document types provided' 
-      });
-    }
-
-    // Update user with new documents
-    const newDocuments = documents.map(doc => ({
-      type: doc.type,
-      url: doc.url,
-      originalName: doc.originalName || 'Document',
-      uploadedAt: new Date(),
-      status: 'pending'
-    }));
-
-    // Remove existing documents of the same type
-    user.verificationDocuments = user.verificationDocuments.filter(
-      existingDoc => !documents.some(newDoc => newDoc.type === existingDoc.type)
-    );
-
-    // Add new documents
-    user.verificationDocuments.push(...newDocuments);
-    user.verificationStatus = 'under_review';
-    user.verificationRequestedAt = new Date();
-
-    await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'Documents submitted successfully for verification',
-      data: {
-        verificationStatus: user.verificationStatus,
-        documentsUploaded: newDocuments.length,
-        progress: user.getVerificationProgress()
-      }
-    });
-
-  } catch (error) {
-    console.error('Submit verification documents error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error during document submission' 
-    });
-  }
-};
 
 // Get verification status
 const getVerificationStatus = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const user = await User.findById(userId).select('-password');
+    const user = await User.findById(userId)
+      .select('-password');
+    
     if (!user) {
       return res.status(404).json({ 
         success: false, 
@@ -103,19 +22,24 @@ const getVerificationStatus = async (req, res) => {
       });
     }
 
+    const Document = require('../models/Document');
+    const documents = await Document.find({ 
+      uploadedBy: userId, 
+      isVerificationDoc: true 
+    }).sort({ createdAt: -1 });
+
     const verificationData = {
       status: user.verificationStatus,
-      isVerified: user.isVerified,
-      documents: user.verificationDocuments.map(doc => ({
-        type: doc.type,
+      documents: documents.map(doc => ({
+        id: doc._id,
+        type: doc.documentType,
         originalName: doc.originalName,
-        uploadedAt: doc.uploadedAt,
-        status: doc.status
+        uploadedAt: doc.createdAt,
+        status: doc.status,
+        reviewNotes: doc.reviewNotes,
+        reviewedAt: doc.reviewedAt
       })),
-      verificationNotes: user.verificationNotes,
-      verifiedAt: user.verifiedAt,
-      verificationRequestedAt: user.verificationRequestedAt,
-      progress: user.getVerificationProgress()
+      verificationRequestedAt: user.createdAt
     };
 
     res.status(200).json({
@@ -195,7 +119,6 @@ const approveVerification = async (req, res) => {
     }
 
     const { lawyerId } = req.params;
-    const { notes } = req.body;
 
     const lawyer = await User.findById(lawyerId);
     if (!lawyer || lawyer.role !== 'lawyer') {
@@ -214,16 +137,6 @@ const approveVerification = async (req, res) => {
 
     // Update verification status
     lawyer.verificationStatus = 'verified';
-    lawyer.isVerified = true;
-    lawyer.verifiedAt = new Date();
-    lawyer.verifiedBy = req.user.id;
-    lawyer.verificationNotes = notes || 'Verification approved';
-    
-    // Mark all documents as approved
-    lawyer.verificationDocuments.forEach(doc => {
-      doc.status = 'approved';
-    });
-
     await lawyer.save();
 
     res.status(200).json({
@@ -259,14 +172,7 @@ const rejectVerification = async (req, res) => {
     }
 
     const { lawyerId } = req.params;
-    const { notes, rejectedDocuments } = req.body;
 
-    if (!notes) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Rejection reason is required' 
-      });
-    }
 
     const lawyer = await User.findById(lawyerId);
     if (!lawyer || lawyer.role !== 'lawyer') {
@@ -285,23 +191,6 @@ const rejectVerification = async (req, res) => {
 
     // Update verification status
     lawyer.verificationStatus = 'rejected';
-    lawyer.isVerified = false;
-    lawyer.verificationNotes = notes;
-    
-    // Mark specific documents as rejected if provided
-    if (rejectedDocuments && Array.isArray(rejectedDocuments)) {
-      lawyer.verificationDocuments.forEach(doc => {
-        if (rejectedDocuments.includes(doc.type)) {
-          doc.status = 'rejected';
-        }
-      });
-    } else {
-      // Mark all documents as rejected
-      lawyer.verificationDocuments.forEach(doc => {
-        doc.status = 'rejected';
-      });
-    }
-
     await lawyer.save();
 
     res.status(200).json({
@@ -312,7 +201,6 @@ const rejectVerification = async (req, res) => {
         name: lawyer.name,
         email: lawyer.email,
         verificationStatus: lawyer.verificationStatus,
-        rejectionReason: notes
       }
     });
 
@@ -339,8 +227,7 @@ const getVerificationDetails = async (req, res) => {
     const { lawyerId } = req.params;
 
     const lawyer = await User.findById(lawyerId)
-      .select('-password')
-      .populate('verifiedBy', 'name email');
+      .select('-password');
 
     if (!lawyer || lawyer.role !== 'lawyer') {
       return res.status(404).json({ 
@@ -348,6 +235,13 @@ const getVerificationDetails = async (req, res) => {
         message: 'Lawyer not found' 
       });
     }
+
+    // Get lawyer's verification documents
+    const Document = require('../models/Document');
+    const documents = await Document.find({ 
+      uploadedBy: lawyerId, 
+      isVerificationDoc: true 
+    }).sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -361,13 +255,16 @@ const getVerificationDetails = async (req, res) => {
           practiceAreas: lawyer.practiceAreas,
           experience: lawyer.experience,
           verificationStatus: lawyer.verificationStatus,
-          documents: lawyer.verificationDocuments,
-          verificationNotes: lawyer.verificationNotes,
-          verifiedAt: lawyer.verifiedAt,
-          verifiedBy: lawyer.verifiedBy,
-          verificationRequestedAt: lawyer.verificationRequestedAt,
           createdAt: lawyer.createdAt
-        }
+        },
+        documents: documents.map(doc => ({
+          id: doc._id,
+          type: doc.documentType,
+          originalName: doc.originalName,
+          uploadedAt: doc.createdAt,
+          status: doc.status,
+          reviewNotes: doc.reviewNotes
+        }))
       }
     });
 
@@ -381,7 +278,6 @@ const getVerificationDetails = async (req, res) => {
 };
 
 module.exports = {
-  submitVerificationDocuments,
   getVerificationStatus,
   getPendingVerifications,
   approveVerification,

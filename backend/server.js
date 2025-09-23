@@ -11,7 +11,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const chromaService = require('./utils/chroma');
 const notificationService = require('./utils/notificationService');
-// const { initializeLawyerVectors } = require('./utils/vectorSync');
+const { initializeLawyerVectors } = require('./utils/vectorSync');
 
 // Load environment variables
 dotenv.config();
@@ -22,14 +22,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use('/api', apiRoutes);
-// app.use(helmet());
-// app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
+app.use(helmet());
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
 
 
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
+  
 })
   .then(() => {
     console.log('MongoDB connected');
@@ -39,15 +38,15 @@ mongoose.connect(process.env.MONGO_URI, {
   .catch((err) => console.error('MongoDB connection error:', err));
 
 // Initialize ChromaDB connection
-// chromaService.connect()
-//   .then(() => {
-//     console.log('ChromaDB connected for recommendations');
-//     // Initialize lawyer vectors after ChromaDB connection
-//     setTimeout(() => {
-//       initializeLawyerVectors();
-//     }, 2000);
-//   })
-//   .catch((err) => console.error('ChromaDB connection error:', err));
+chromaService.connect()
+  .then(() => {
+    console.log('ChromaDB connected for recommendations');
+    // Initialize lawyer vectors after ChromaDB connection with Hugging Face embeddings
+    setTimeout(() => {
+      initializeLawyerVectors();
+    }, 3000); // Increased timeout to allow model loading
+  })
+  .catch((err) => console.error('ChromaDB connection error:', err));
 
 // Health check route
 app.get('/', (req, res) => {

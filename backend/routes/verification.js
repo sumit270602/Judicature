@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const {
-  submitVerificationDocuments,
   getVerificationStatus,
   getPendingVerifications,
   approveVerification,
@@ -12,7 +11,6 @@ const auth = require('../middleware/auth');
 const requireRole = require('../middleware/roles');
 
 // Lawyer verification routes (protected, lawyer-only)
-router.post('/submit', auth, requireRole(['lawyer']), submitVerificationDocuments);
 router.get('/status', auth, requireRole(['lawyer']), getVerificationStatus);
 
 // Admin verification management routes (protected, admin-only)
