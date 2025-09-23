@@ -1,5 +1,4 @@
 const Document = require('../models/Document');
-const User = require('../models/User');
 const Case = require('../models/Case');
 const multer = require('multer');
 
@@ -138,13 +137,11 @@ const getUserDocs = async (req, res) => {
 const getCaseDocs = async (req, res) => {
   try {
     const { caseId } = req.params;
-    console.log('Getting docs for case ID:', caseId);
 
     const caseItem = await Case.findById(caseId);
     if (!caseItem) {
       return res.status(404).json({ message: 'Case not found' });
     }
-    console.log('Case found:', caseItem.title, 'Documents in case:', caseItem.documents.length);
 
     // Check permission
     const hasPermission = 
@@ -157,11 +154,6 @@ const getCaseDocs = async (req, res) => {
     }
 
     const documents = await Document.getCaseDocs(caseId);
-    console.log('Documents found by getCaseDocs:', documents.length);
-    
-    // Also check documents by direct query for debugging
-    const directDocuments = await Document.find({ relatedCase: caseId });
-    console.log('Documents found by direct query:', directDocuments.length);
     
     // Filter documents based on user role and ownership
     const filteredDocs = req.user.role === 'admin' 
@@ -170,8 +162,6 @@ const getCaseDocs = async (req, res) => {
           doc.status === 'approved' || // Approved docs visible to all case participants
           doc.uploadedBy._id.toString() === req.user.id // Users can see their own uploads
         );
-    
-    console.log('Filtered documents:', filteredDocs.length);
     
     res.json({
       success: true,
@@ -185,7 +175,8 @@ const getCaseDocs = async (req, res) => {
     });
 
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error('Get case docs error:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 

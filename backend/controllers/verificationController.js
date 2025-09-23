@@ -119,7 +119,6 @@ const approveVerification = async (req, res) => {
     }
 
     const { lawyerId } = req.params;
-    const { notes } = req.body;
 
     const lawyer = await User.findById(lawyerId);
     if (!lawyer || lawyer.role !== 'lawyer') {
@@ -173,14 +172,7 @@ const rejectVerification = async (req, res) => {
     }
 
     const { lawyerId } = req.params;
-    const { notes, rejectedDocuments } = req.body;
 
-    if (!notes) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Rejection reason is required' 
-      });
-    }
 
     const lawyer = await User.findById(lawyerId);
     if (!lawyer || lawyer.role !== 'lawyer') {
@@ -209,7 +201,6 @@ const rejectVerification = async (req, res) => {
         name: lawyer.name,
         email: lawyer.email,
         verificationStatus: lawyer.verificationStatus,
-        rejectionReason: notes
       }
     });
 
@@ -236,8 +227,7 @@ const getVerificationDetails = async (req, res) => {
     const { lawyerId } = req.params;
 
     const lawyer = await User.findById(lawyerId)
-      .select('-password')
-      .populate('verifiedBy', 'name email');
+      .select('-password');
 
     if (!lawyer || lawyer.role !== 'lawyer') {
       return res.status(404).json({ 
@@ -245,6 +235,13 @@ const getVerificationDetails = async (req, res) => {
         message: 'Lawyer not found' 
       });
     }
+
+    // Get lawyer's verification documents
+    const Document = require('../models/Document');
+    const documents = await Document.find({ 
+      uploadedBy: lawyerId, 
+      isVerificationDoc: true 
+    }).sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -259,7 +256,15 @@ const getVerificationDetails = async (req, res) => {
           experience: lawyer.experience,
           verificationStatus: lawyer.verificationStatus,
           createdAt: lawyer.createdAt
-        }
+        },
+        documents: documents.map(doc => ({
+          id: doc._id,
+          type: doc.documentType,
+          originalName: doc.originalName,
+          uploadedAt: doc.createdAt,
+          status: doc.status,
+          reviewNotes: doc.reviewNotes
+        }))
       }
     });
 

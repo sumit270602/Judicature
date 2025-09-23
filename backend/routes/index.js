@@ -9,6 +9,5 @@ router.use('/ai', require('./ai'));
 router.use('/verification', require('./verification'));
 router.use('/recommendations', require('./recommendations'));
 router.use('/documents', require('./documents'));
-router.use('/admin', require('./admin'));
 
 module.exports = router; 
