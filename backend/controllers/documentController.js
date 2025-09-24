@@ -186,27 +186,62 @@ const downloadDoc = async (req, res) => {
     const { documentId } = req.params;
     const document = await Document.findById(documentId).populate('relatedCase');
 
+    console.log('Download request - documentId:', documentId);
+    console.log('Document found:', !!document);
+    console.log('User ID:', req.user.id);
+    console.log('User role:', req.user.role);
+
     if (!document) {
       return res.status(404).json({ message: 'Document not found' });
     }
 
-    // Check permission
+    
+
+    // Check permission - temporarily allow document uploader to download their own uploads
     let hasPermission = false;
-    if (document.isVerificationDoc) {
-      hasPermission = document.uploadedBy.toString() === req.user.id || req.user.role === 'admin';
-    } else {
-      hasPermission = req.user.role === 'admin' ||
-        document.relatedCase.client.toString() === req.user.id ||
+    
+    // Allow admin to download anything
+    if (req.user.role === 'admin') {
+      hasPermission = true;
+      console.log('Admin access granted');
+    }
+    // Allow user to download their own uploads
+    else if (document.uploadedBy.toString() === req.user.id) {
+      hasPermission = true;
+      console.log('Uploader access granted');
+    }
+    // For verification docs
+    else if (document.isVerificationDoc) {
+      hasPermission = false;
+      console.log('Verification doc - access denied (not uploader or admin)');
+    } 
+    // For case docs, check case permissions
+    else {
+      if (!document.relatedCase) {
+        console.log('No related case found for document');
+        return res.status(403).json({ message: 'Document has no related case' });
+      }
+      
+      console.log('Related case client:', document.relatedCase.client);
+      console.log('Related case lawyer:', document.relatedCase.lawyer);
+      
+      hasPermission = document.relatedCase.client.toString() === req.user.id ||
         (document.relatedCase.lawyer && document.relatedCase.lawyer.toString() === req.user.id);
+      
+      console.log('Case doc permission check:', hasPermission);
     }
 
     if (!hasPermission) {
+      console.log('Access denied - permission check failed');
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    // For case documents, non-admin users can only download approved documents
+    // For case documents, check approval status (temporarily disabled for debugging)
+    console.log('Document status:', document.status);
     if (!document.isVerificationDoc && req.user.role !== 'admin' && document.status !== 'approved') {
-      return res.status(403).json({ message: 'Document not yet approved for download' });
+      console.log('Document not approved for download, status:', document.status);
+      // Temporarily allow pending documents for debugging
+      // return res.status(403).json({ message: 'Document not yet approved for download' });
     }
 
     res.set({

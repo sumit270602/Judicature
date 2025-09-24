@@ -2,15 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Calendar, Clock, FileText, User, DollarSign, Bell, Briefcase, MessageSquare, Download, Upload, Shield, Settings, AlertCircle } from 'lucide-react';
+import { Calendar, FileText, User, DollarSign, Bell, Briefcase, Download, Upload, Shield, Settings, AlertCircle, Bot, Send } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useClientDashboard, useRealTimeUpdates, type Case } from '@/hooks/useDashboard';
 import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
+import { downloadDocument } from '@/api';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
@@ -18,16 +24,7 @@ import Footer from '@/components/Footer';
 interface ClientDashboardStats {
   activeCases: number;
   nextCourtDate: string;
-  pendingActions: number;
-}
-
-// Timeline event interface
-interface TimelineEvent {
-  _id: string;
-  title: string;
-  description: string;
-  createdAt: string;
-  type: 'update' | 'document' | 'hearing' | 'payment';
+  aiAssistantAvailable: boolean;
 }
 
 // Header stats cards for clients
@@ -55,64 +52,38 @@ const ClientHeaderCards = ({ stats }: { stats: ClientDashboardStats }) => (
       </CardContent>
     </Card>
     
-    <Card className="border-l-4 border-l-orange-500">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">Pending Actions</CardTitle>
-        <Bell className="h-4 w-4 text-orange-500" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold text-orange-500">{stats.pendingActions}</div>
-        <p className="text-xs text-muted-foreground">Items requiring attention</p>
-      </CardContent>
-    </Card>
+    <Dialog>
+      <DialogTrigger asChild>
+        <Card className="border-l-4 border-l-blue-500 cursor-pointer hover:bg-gray-50 transition-colors">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">AI Legal Assistant</CardTitle>
+            <Bot className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-500">Available</div>
+            <p className="text-xs text-muted-foreground">Get instant legal guidance</p>
+          </CardContent>
+        </Card>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[80vh]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Bot className="h-5 w-5 text-blue-500" />
+            AI Legal Assistant
+          </DialogTitle>
+          <DialogDescription>
+            Get instant answers to your legal questions and guidance on your cases
+          </DialogDescription>
+        </DialogHeader>
+        <AIAssistantChat />
+      </DialogContent>
+    </Dialog>
   </div>
 );
 
-// Case Timeline Feed component
-const CaseTimelineFeed = ({ events }: { events: TimelineEvent[] }) => (
-  <Card className="mb-6">
-    <CardHeader>
-      <CardTitle className="flex items-center gap-2">
-        <Clock className="h-5 w-5" />
-        Case Timeline Feed
-      </CardTitle>
-      <CardDescription>Recent updates on your cases</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <ScrollArea className="h-80">
-        <div className="space-y-4">
-          {events.length > 0 ? events.map((event) => (
-            <div key={event._id} className="flex items-start space-x-4">
-              <div className={`w-2 h-2 rounded-full mt-2 ${
-                event.type === 'update' ? 'bg-blue-500' :
-                event.type === 'document' ? 'bg-green-500' :
-                event.type === 'hearing' ? 'bg-legal-navy' :
-                'bg-orange-500'
-              }`} />
-              <div className="flex-1 space-y-1">
-                <p className="text-sm font-medium">{event.title}</p>
-                <p className="text-xs text-muted-foreground">{event.description}</p>
-                <p className="text-xs text-legal-navy">{new Date(event.createdAt).toLocaleDateString()}</p>
-              </div>
-            </div>
-          )) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No recent updates</p>
-            </div>
-          )}
-        </div>
-      </ScrollArea>
-      <Button variant="outline" className="w-full mt-4">
-        <Clock className="mr-2 h-4 w-4" />
-        View All Updates
-      </Button>
-    </CardContent>
-  </Card>
-);
 
 // My Cases Table component
-const MyCasesTable = ({ cases }: { cases: Case[] }) => (
+const MyCasesTable = ({ cases, navigate }: { cases: Case[]; navigate: (path: string) => void }) => (
   <Card className="mb-6">
     <CardHeader>
       <CardTitle className="flex items-center gap-2">
@@ -155,7 +126,13 @@ const MyCasesTable = ({ cases }: { cases: Case[] }) => (
                 {case_.nextHearing ? new Date(case_.nextHearing).toLocaleDateString() : 'TBD'}
               </TableCell>
               <TableCell>
-                <Button variant="outline" size="sm">View Details</Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => navigate(`/case/${case_._id}`)}
+                >
+                  View Details
+                </Button>
               </TableCell>
             </TableRow>
           )) : (
@@ -172,100 +149,337 @@ const MyCasesTable = ({ cases }: { cases: Case[] }) => (
 );
 
 // Document Vault component
-const DocumentVault = () => (
-  <Card className="mb-6">
-    <CardHeader>
-      <CardTitle className="flex items-center gap-2">
-        <FileText className="h-5 w-5" />
-        Document Vault
-      </CardTitle>
-      <CardDescription>Your legal documents and case files</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div className="text-center p-4 border-2 border-dashed border-muted rounded-lg hover:border-legal-navy transition-colors cursor-pointer">
-          <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-          <p className="text-sm font-medium">Upload Document</p>
-          <p className="text-xs text-muted-foreground">Drag & drop or click to browse</p>
-        </div>
-        <div className="text-center p-4 border rounded-lg bg-muted/50">
-          <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-          <p className="text-sm font-medium">Total Documents</p>
-          <p className="text-2xl font-bold text-legal-navy">15</p>
-        </div>
-      </div>
-      
-      <div className="space-y-2">
-        <h4 className="text-sm font-medium">Recent Documents</h4>
-        {[
-          { name: 'Property Agreement.pdf', size: '2.1 MB', date: '2 days ago', type: 'Contract' },
-          { name: 'Case Evidence Photos.zip', size: '5.3 MB', date: '1 week ago', type: 'Evidence' },
-          { name: 'Court Filing Form.pdf', size: '1.2 MB', date: '2 weeks ago', type: 'Filing' },
-        ].map((doc, index) => (
-          <div key={index} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
-            <div className="flex items-center gap-3">
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">{doc.name}</p>
-                <p className="text-xs text-muted-foreground">{doc.type} • {doc.size} • {doc.date}</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="ghost" size="sm">
-                <Download className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="sm">View</Button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </CardContent>
-  </Card>
-);
+const DocumentVault = ({ 
+  documents, 
+  uploadDocument, 
+  isUploading 
+}: { 
+  documents: any[]; 
+  uploadDocument: (data: FormData) => void; 
+  isUploading: boolean;
+}) => {
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [downloadingDocId, setDownloadingDocId] = useState<string | null>(null);
+  const { toast } = useToast();
 
-// Client AI Help component
-const ClientAIHelp = () => (
-  <Card className="mb-6">
-    <CardHeader>
-      <CardTitle className="flex items-center gap-2">
-        <MessageSquare className="h-5 w-5" />
-        AI Legal Assistant
-      </CardTitle>
-      <CardDescription>Get quick answers to your legal questions</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <div className="space-y-4">
-        <div className="bg-gradient-to-r from-legal-navy/10 to-blue-100 p-4 rounded-lg">
-          <h4 className="text-sm font-medium mb-2">Ask anything about your case</h4>
-          <p className="text-xs text-muted-foreground mb-3">Our AI can help explain legal terms, processes, and answer questions about your case.</p>
-          <Button className="w-full">
-            <MessageSquare className="mr-2 h-4 w-4" />
-            Start AI Chat
-          </Button>
+  // Handle file upload
+  const handleFileUpload = async () => {
+    if (!selectedFile) return;
+
+    try {
+      const formData = new FormData();
+      formData.append('document', selectedFile);
+
+      uploadDocument(formData);
+      
+      toast({
+        title: "Upload Started",
+        description: "Document is being uploaded",
+      });
+      
+      setShowUploadDialog(false);
+      setSelectedFile(null);
+    } catch (error: any) {
+      console.error('Upload error:', error);
+      toast({
+        title: "Upload Failed",
+        description: "Failed to upload document",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Download document function (reused from CaseDetails)
+  const handleDownloadDocument = async (docId: string, fileName: string) => {
+    if (!docId || docId === 'undefined') {
+      toast({
+        title: "Download Failed",
+        description: "Invalid document ID",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setDownloadingDocId(docId);
+      const response = await downloadDocument(docId);
+      
+      // Create blob and download
+      const blob = new Blob([response.data]);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Download Started",
+        description: `${fileName} is being downloaded`,
+      });
+    } catch (error: any) {
+      console.error('Download error:', error);
+      toast({
+        title: "Download Failed",
+        description: error.response?.data?.message || "Failed to download document",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingDocId(null);
+    }
+  };
+
+  return (
+    <Card className="mb-6">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <FileText className="h-5 w-5" />
+          Document Vault
+        </CardTitle>
+        <CardDescription>Your legal documents and case files</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div 
+            className="text-center p-4 border-2 border-dashed border-muted rounded-lg hover:border-legal-navy transition-colors cursor-pointer"
+            onClick={() => setShowUploadDialog(true)}
+          >
+            <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+            <p className="text-sm font-medium">Upload Document</p>
+            <p className="text-xs text-muted-foreground">Drag & drop or click to browse</p>
+          </div>
+          <div className="text-center p-4 border rounded-lg bg-muted/50">
+            <FileText className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+            <p className="text-sm font-medium">Total Documents</p>
+            <p className="text-2xl font-bold text-legal-navy">{documents?.length || 0}</p>
+          </div>
         </div>
         
-        <div>
-          <h4 className="text-sm font-medium mb-3">Frequently Asked Questions</h4>
-          <div className="space-y-2">
-            {[
-              'What happens at my next court hearing?',
-              'How long does my type of case usually take?',
-              'What documents do I need to prepare?',
-              'How are legal fees calculated?'
-            ].map((question, index) => (
-              <button
-                key={index}
-                className="w-full text-left p-2 text-sm hover:bg-muted rounded border"
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium">Your Documents</h4>
+          {documents && documents.length > 0 ? documents.map((doc, index) => (
+            <div key={doc._id || index} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50">
+              <div className="flex items-center gap-3">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <div>
+                  <p className="text-sm font-medium">{doc.originalName || doc.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {doc.type || 'Document'} • {doc.size || 'Unknown size'} • {new Date(doc.uploadDate || doc.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => handleDownloadDocument(doc._id, doc.originalName || doc.name)}
+                  disabled={downloadingDocId === doc._id}
+                >
+                  {downloadingDocId === doc._id ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-legal-navy border-t-transparent" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => handleDownloadDocument(doc._id, doc.originalName || doc.name)}
+                >
+                  View
+                </Button>
+              </div>
+            </div>
+          )) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No documents uploaded yet</p>
+              <p className="text-xs">Click the upload area above to add your first document</p>
+            </div>
+          )}
+        </div>
+
+        {/* Upload Dialog */}
+        <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Upload Document</DialogTitle>
+              <DialogDescription>
+                Select a document to upload to your document vault
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <input
+                  type="file"
+                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                  className="w-full p-2 border rounded-lg"
+                  accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt"
+                />
+                {selectedFile && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setShowUploadDialog(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleFileUpload} 
+                  disabled={!selectedFile || isUploading}
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent mr-2" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
+  );
+};
+
+
+
+// AI Assistant Chat component
+const AIAssistantChat = () => {
+  const [messages, setMessages] = useState([
+    {
+      id: 1,
+      text: "Hello! I'm your AI Legal Assistant. I can help answer questions about your cases, explain legal terms, and provide guidance on legal processes. How can I assist you today?",
+      sender: 'ai',
+      timestamp: new Date()
+    }
+  ]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+
+  const commonQuestions = [
+    "What should I expect at my court hearing?",
+    "How do I prepare for my case?",
+    "What documents do I need?",
+    "Explain legal terms in my case",
+    "What are my rights in this situation?"
+  ];
+
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim()) return;
+
+    const userMessage = {
+      id: messages.length + 1,
+      text: inputMessage,
+      sender: 'user',
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputMessage('');
+    setIsTyping(true);
+
+    // Simulate AI response
+    setTimeout(() => {
+      const aiResponse = {
+        id: messages.length + 2,
+        text: "I understand your question. While I can provide general legal information, please remember that this doesn't constitute legal advice. For your specific situation, I recommend discussing this with your assigned lawyer. Would you like me to help you prepare questions to ask them?",
+        sender: 'ai',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, aiResponse]);
+      setIsTyping(false);
+    }, 2000);
+  };
+
+  const handleQuestionClick = (question: string) => {
+    setInputMessage(question);
+  };
+
+  return (
+    <div className="flex flex-col h-[500px]">
+      {/* Chat Messages */}
+      <ScrollArea className="flex-1 p-4 border rounded-lg mb-4">
+        <div className="space-y-4">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`max-w-[80%] p-3 rounded-lg ${
+                  message.sender === 'user'
+                    ? 'bg-legal-navy text-white'
+                    : 'bg-gray-100 text-gray-900'
+                }`}
               >
-                {question}
-              </button>
-            ))}
-          </div>
+                <p className="text-sm">{message.text}</p>
+                <p className="text-xs opacity-70 mt-1">
+                  {message.timestamp.toLocaleTimeString()}
+                </p>
+              </div>
+            </div>
+          ))}
+          {isTyping && (
+            <div className="flex justify-start">
+              <div className="bg-gray-100 p-3 rounded-lg">
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+
+      {/* Common Questions */}
+      <div className="mb-4">
+        <p className="text-sm font-medium mb-2">Quick Questions:</p>
+        <div className="flex flex-wrap gap-2">
+          {commonQuestions.map((question, index) => (
+            <Button
+              key={index}
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuestionClick(question)}
+              className="text-xs"
+            >
+              {question}
+            </Button>
+          ))}
         </div>
       </div>
-    </CardContent>
-  </Card>
-);
+
+      {/* Message Input */}
+      <div className="flex gap-2">
+        <Input
+          value={inputMessage}
+          onChange={(e) => setInputMessage(e.target.value)}
+          placeholder="Ask me anything about your legal matters..."
+          onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+          className="flex-1"
+        />
+        <Button onClick={handleSendMessage} disabled={!inputMessage.trim() || isTyping}>
+          <Send className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+};
 
 // Client Calendar component
 const ClientCalendar = () => (
@@ -449,76 +663,115 @@ const NotificationsDrawer = () => (
 );
 
 // Profile & Settings component
-const ClientProfileSettings = () => (
-  <Card className="mb-6">
-    <CardHeader>
-      <CardTitle className="flex items-center gap-2">
-        <User className="h-5 w-5" />
-        Profile & Settings
-      </CardTitle>
-      <CardDescription>Manage your account and preferences</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <div className="space-y-4">
-        <div className="flex items-center gap-4">
-          <Avatar className="h-16 w-16">
-            <AvatarImage src="/api/placeholder/64/64" />
-            <AvatarFallback>JS</AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="text-sm font-medium">John Smith</p>
-            <p className="text-xs text-muted-foreground">john.smith@email.com</p>
-            <Badge variant="outline" className="mt-1">
-              <Shield className="w-3 h-3 mr-1" />
-              Verified
-            </Badge>
+const ClientProfileSettings = ({ user }: { user: any }) => {
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase())
+      .join('')
+      .substring(0, 2);
+  };
+
+  return (
+    <Card className="mb-6">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <User className="h-5 w-5" />
+          Profile & Settings
+        </CardTitle>
+        <CardDescription>Manage your account and preferences</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <Avatar className="h-16 w-16">
+              <AvatarImage src={user?.avatar || "/api/placeholder/64/64"} />
+              <AvatarFallback>{user?.name ? getInitials(user.name) : 'U'}</AvatarFallback>
+            </Avatar>
+            <div>
+              <p className="text-sm font-medium">{user?.name || 'User'}</p>
+              <p className="text-xs text-muted-foreground">{user?.email || 'user@example.com'}</p>
+              <Badge variant="outline" className="mt-1">
+                <Shield className="w-3 h-3 mr-1" />
+                {user?.isVerified ? 'Verified' : 'Unverified'}
+              </Badge>
+            </div>
+          </div>
+          
+          <Separator />
+          
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium">Personal Information</h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Full Name:</span>
+                <span>{user?.name || 'Not provided'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Email:</span>
+                <span>{user?.email || 'Not provided'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Phone:</span>
+                <span>{user?.phone || 'Not provided'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Address:</span>
+                <span>{user?.address || 'Not provided'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Member Since:</span>
+                <span>{user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}</span>
+              </div>
+            </div>
+          </div>
+          
+          <Separator />
+          
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium">Quick Settings</h4>
+            {[
+              { label: 'Personal Information', icon: User },
+              { label: 'Security & KYC', icon: Shield },
+              { label: 'Notifications', icon: Bell },
+              { label: 'Privacy Settings', icon: Settings }
+            ].map((item, index) => (
+              <button
+                key={index}
+                className="w-full flex items-center gap-3 p-2 text-sm hover:bg-muted rounded"
+              >
+                <item.icon className="h-4 w-4 text-muted-foreground" />
+                {item.label}
+              </button>
+            ))}
+          </div>
+          
+          <Separator />
+          
+          <div className="space-y-2">
+            <div className="flex justify-between items-center text-sm">
+              <span>Account Status</span>
+              <Badge variant="default">Active</Badge>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span>Two-Factor Auth</span>
+              <Badge variant="outline">Enabled</Badge>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span>KYC Status</span>
+              <Badge variant="default">Verified</Badge>
+            </div>
           </div>
         </div>
-        
-        <Separator />
-        
-        <div className="space-y-3">
-          <h4 className="text-sm font-medium">Quick Settings</h4>
-          {[
-            { label: 'Personal Information', icon: User },
-            { label: 'Security & KYC', icon: Shield },
-            { label: 'Notifications', icon: Bell },
-            { label: 'Privacy Settings', icon: Settings }
-          ].map((item, index) => (
-            <button
-              key={index}
-              className="w-full flex items-center gap-3 p-2 text-sm hover:bg-muted rounded"
-            >
-              <item.icon className="h-4 w-4 text-muted-foreground" />
-              {item.label}
-            </button>
-          ))}
-        </div>
-        
-        <Separator />
-        
-        <div className="space-y-2">
-          <div className="flex justify-between items-center text-sm">
-            <span>Account Status</span>
-            <Badge variant="default">Active</Badge>
-          </div>
-          <div className="flex justify-between items-center text-sm">
-            <span>Two-Factor Auth</span>
-            <Badge variant="outline">Enabled</Badge>
-          </div>
-          <div className="flex justify-between items-center text-sm">
-            <span>KYC Status</span>
-            <Badge variant="default">Verified</Badge>
-          </div>
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-);
+      </CardContent>
+    </Card>
+  );
+};
 
 const ClientDashboard: React.FC = () => {
   const { user } = useAuth();
-  const { stats, cases, timeline, documents, isLoading, error, uploadDocument, isUploading } = useClientDashboard();
+  const navigate = useNavigate();
+  const { stats, cases, documents, isLoading, error, uploadDocument, isUploading } = useClientDashboard();
   
   // Set up real-time updates
   useRealTimeUpdates(user?.id || '', 'client');
@@ -574,22 +827,30 @@ const ClientDashboard: React.FC = () => {
   const defaultStats: ClientDashboardStats = {
     activeCases: 0,
     nextCourtDate: 'None scheduled',
-    pendingActions: 0
+    aiAssistantAvailable: true
   };
 
   const displayStats = stats || defaultStats;
   const displayCases = cases || [];
-  const displayTimeline = timeline || [];
 
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-gradient-to-br from-legal-navy/5 to-legal-gold/5 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-legal-navy/5 to-legal-gold/5 pt-24 p-6">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-legal-navy mb-2">Client Dashboard</h1>
-            <p className="text-slate-600">Track your cases, communicate with your lawyers, and manage your legal matters.</p>
+          <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-legal-navy mb-2">Client Dashboard</h1>
+              <p className="text-slate-600">Track your cases, communicate with your lawyers, and manage your legal matters.</p>
+            </div>
+            <Button 
+              onClick={() => navigate('/create-case')} 
+              className="bg-legal-gold hover:bg-legal-gold/90 text-legal-navy font-medium px-6 py-2"
+            >
+              <Briefcase className="mr-2 h-4 w-4" />
+              Create New Case
+            </Button>
           </div>
 
           {/* Stats Cards */}
@@ -599,10 +860,12 @@ const ClientDashboard: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column - Main Content */}
             <div className="lg:col-span-2 space-y-6">
-              <CaseTimelineFeed events={displayTimeline} />
-              <MyCasesTable cases={displayCases} />
-              <DocumentVault />
-              <ClientAIHelp />
+              <MyCasesTable cases={displayCases} navigate={navigate} />
+              <DocumentVault 
+                documents={documents || []} 
+                uploadDocument={uploadDocument}
+                isUploading={isUploading}
+              />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <ClientCalendar />
                 <BillingPayments />
@@ -612,7 +875,7 @@ const ClientDashboard: React.FC = () => {
             {/* Right Column - Sidebar */}
             <div className="space-y-6">
               <NotificationsDrawer />
-              <ClientProfileSettings />
+              <ClientProfileSettings user={user} />
             </div>
           </div>
         </div>

@@ -1,4 +1,5 @@
 const Case = require('../models/Case');
+const Counter = require('../models/Counter');
 const { updateLawyerVector } = require('./recommendationController');
 
 exports.createCase = async (req, res) => {
@@ -27,22 +28,77 @@ exports.createCase = async (req, res) => {
       }
     }
 
-    // Generate case number if not provided
-    const count = await Case.countDocuments();
+    // Generate unique case number with retry mechanism
     const year = new Date().getFullYear();
-    const caseNumber = `CASE-${year}-${(count + 1).toString().padStart(4, '0')}`;
+    let caseNumber;
+    let attempts = 0;
+    const maxAttempts = 10;
 
-    const newCase = new Case({
-      caseNumber,
-      title: title.trim(),
-      description: description.trim(),
-      caseType,
-      client: req.user.id,
-      lawyer: lawyer || undefined,
-      priority: priority || 'medium'
-    });
-    
-    await newCase.save();
+    while (attempts < maxAttempts) {
+      try {
+        // Try atomic counter first
+        const sequenceNumber = await Counter.getNextSequence(`case_${year}`);
+        caseNumber = `CASE-${year}-${sequenceNumber.toString().padStart(4, '0')}`;
+        
+        // Check if this case number already exists
+        const existingCase = await Case.findOne({ caseNumber });
+        if (existingCase) {
+          attempts++;
+          continue; // Try next number
+        }
+        
+        break; // Found unique number
+        
+      } catch (error) {
+        attempts++;
+        if (attempts >= maxAttempts) {
+          // Fallback to timestamp-based unique number
+          const timestamp = Date.now().toString().slice(-8);
+          const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+          caseNumber = `CASE-${year}-${timestamp}${random}`;
+          break;
+        }
+      }
+    }
+
+    // Create and save case with final duplicate check
+    let newCase;
+    let saveAttempts = 0;
+    const maxSaveAttempts = 3;
+
+    while (saveAttempts < maxSaveAttempts) {
+      try {
+        newCase = new Case({
+          caseNumber,
+          title: title.trim(),
+          description: description.trim(),
+          caseType,
+          client: req.user.id,
+          lawyer: lawyer || undefined,
+          priority: priority || 'medium'
+        });
+        
+        await newCase.save();
+        break; // Success
+        
+      } catch (error) {
+        if (error.code === 11000 && saveAttempts < maxSaveAttempts - 1) {
+          // Still a duplicate, generate new number
+          saveAttempts++;
+          const timestamp = Date.now().toString().slice(-8);
+          const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+          caseNumber = `CASE-${year}-T${timestamp}${random}`;
+          console.log(`Duplicate case number, retrying with: ${caseNumber}`);
+          continue;
+        } else {
+          throw error; // Re-throw if not duplicate or max attempts reached
+        }
+      }
+    }
+
+    if (!newCase) {
+      return res.status(500).json({ message: 'Failed to create case after multiple attempts' });
+    }
     
     // Populate the response
     const populatedCase = await Case.findById(newCase._id)

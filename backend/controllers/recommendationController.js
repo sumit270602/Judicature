@@ -20,11 +20,11 @@ const recommendLawyersForCase = async (req, res) => {
             return res.json({ lawyers: [], message: 'No lawyers found in recommendation system' });
         }
 
-        // Get full lawyer details from MongoDB
+        // Get full lawyer details from MongoDB - only verified lawyers who can take cases
         const lawyersWithProfiles = [];
         for (const rec of recommendations) {
             const lawyerProfile = await User.findById(rec.lawyerId).select('-password');
-            if (lawyerProfile && lawyerProfile.role === 'lawyer') {
+            if (lawyerProfile && lawyerProfile.canTakeCases()) {
                 lawyersWithProfiles.push({
                     lawyer: lawyerProfile,
                     similarity: rec.similarity,
@@ -36,10 +36,16 @@ const recommendLawyersForCase = async (req, res) => {
             }
         }
 
+        // Add message if no verified lawyers found
+        const message = lawyersWithProfiles.length === 0 ? 
+            'No verified lawyers found for this case type. All recommended lawyers must be verified to take cases.' :
+            `Found ${lawyersWithProfiles.length} verified lawyer${lawyersWithProfiles.length > 1 ? 's' : ''} for your case.`;
+
         res.json({
             caseType,
             lawyers: lawyersWithProfiles,
-            count: lawyersWithProfiles.length
+            count: lawyersWithProfiles.length,
+            message
         });
 
     } catch (error) {
@@ -74,11 +80,11 @@ const getSimilarLawyers = async (req, res) => {
             });
         }
 
-        // Get full profiles for similar lawyers
+        // Get full profiles for similar lawyers - only verified lawyers who can take cases
         const recommendations = [];
         for (const similar of similarLawyers) {
             const lawyerProfile = await User.findById(similar.lawyerId).select('-password');
-            if (lawyerProfile) {
+            if (lawyerProfile && lawyerProfile.canTakeCases()) {
                 recommendations.push({
                     lawyer: lawyerProfile,
                     similarity: similar.similarity,

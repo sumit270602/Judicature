@@ -15,7 +15,7 @@ export interface DashboardStats {
 export interface ClientDashboardStats {
   activeCases: number;
   nextCourtDate: string;
-  pendingActions: number;
+  aiAssistantAvailable: boolean;
 }
 
 export interface Case {
@@ -112,7 +112,7 @@ const dashboardAPI = {
 
   // Document APIs
   uploadDocument: async (formData: FormData): Promise<UploadResponse> => {
-    const { data } = await axios.post(`${API_BASE_URL}/upload`, formData, {
+    const { data } = await axios.post(`${API_BASE_URL}/documents/case/upload`, formData, {
       headers: { 
         Authorization: `Bearer ${localStorage.getItem('token')}`,
         'Content-Type': 'multipart/form-data'
@@ -123,8 +123,8 @@ const dashboardAPI = {
 
   getDocuments: async (caseId?: string): Promise<Document[]> => {
     const url = caseId 
-      ? `${API_BASE_URL}/cases/${caseId}/documents` 
-      : `${API_BASE_URL}/documents`;
+      ? `${API_BASE_URL}/documents/case/${caseId}` 
+      : `${API_BASE_URL}/documents/my-documents`;
     
     const { data } = await axios.get(url, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }

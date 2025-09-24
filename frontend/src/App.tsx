@@ -25,6 +25,8 @@ import ClientDashboard from "./pages/ClientDashboard";
 import LawyerDashboard from "./pages/LawyerDashboard";
 import MessagingDemo from "./pages/MessagingDemo";
 import AuthSuccess from "./pages/AuthSuccess";
+import CreateCase from "./pages/CreateCase";
+import CaseDetails from "./pages/CaseDetails";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +58,8 @@ const App = () => (
             <Route path="/dashboard/lawyer" element={<LawyerDashboard />} />
             <Route path="/messaging" element={<MessagingDemo />} />
             <Route path="/auth/success" element={<AuthSuccess />} />
+            <Route path="/create-case" element={<CreateCase />} />
+            <Route path="/case/:caseId" element={<CaseDetails />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
