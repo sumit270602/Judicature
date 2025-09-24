@@ -94,7 +94,7 @@ exports.getCaseById = async (req, res) => {
       .populate('client', 'name email role phone address')
       .populate('lawyer', 'name email role phone practiceAreas experience')
       .populate('notes.addedBy', 'name role')
-      .populate('files.uploadedBy', 'name role');
+      .populate('documents');
     
     if (!caseItem) {
       return res.status(404).json({ message: 'Case not found' });
@@ -138,6 +138,11 @@ exports.updateCase = async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
     
+    // Validate request body
+    if (!req.body || typeof req.body !== 'object') {
+      return res.status(400).json({ message: 'Invalid request body' });
+    }
+    
     // Update allowed fields
     const allowedUpdates = ['title', 'description', 'status', 'priority', 'nextHearingDate', 'lawyer'];
     const updates = {};
@@ -147,6 +152,11 @@ exports.updateCase = async (req, res) => {
         updates[field] = req.body[field];
       }
     });
+    
+    // Check if there are any updates to apply
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: 'No valid fields provided for update' });
+    }
     
     const updated = await Case.findByIdAndUpdate(
       req.params.id, 

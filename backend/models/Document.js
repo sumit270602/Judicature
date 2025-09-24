@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const documentSchema = new mongoose.Schema({
   // Basic file info (enhanced from both versions)
-  filename: { 
+  fileName: { 
     type: String, 
     required: true 
   },
@@ -14,13 +14,13 @@ const documentSchema = new mongoose.Schema({
     type: String, 
     required: true 
   },
-  size: { 
+  fileSize: { 
     type: Number, 
     required: true,
-    max: 10485760 // 10MB limit from remote version
+    max: 10485760 // 10MB limit
   },
-  cloudinaryUrl: { 
-    type: String, 
+  fileData: { 
+    type: Buffer, 
     required: true 
   },
   
@@ -108,16 +108,25 @@ documentSchema.index({ filename: 'text', originalName: 'text' });
 documentSchema.index({ documentType: 1 });
 
 // Static methods (combined from both versions)
-documentSchema.statics.getUserDocuments = function(userId) {
+documentSchema.statics.getUserDocs = function(userId) {
   return this.find({ uploadedBy: userId })
     .sort({ createdAt: -1 })
     .populate('relatedCase', 'title caseNumber');
 };
 
-documentSchema.statics.getCaseDocuments = function(caseId) {
+documentSchema.statics.getCaseDocs = function(caseId) {
   return this.find({ relatedCase: caseId })
     .sort({ createdAt: -1 })
     .populate('uploadedBy', 'name email');
+};
+
+// Keep old method names for backward compatibility
+documentSchema.statics.getUserDocuments = function(userId) {
+  return this.getUserDocs(userId);
+};
+
+documentSchema.statics.getCaseDocuments = function(caseId) {
+  return this.getCaseDocs(caseId);
 };
 
 documentSchema.statics.getPendingDocs = function() {
