@@ -11,6 +11,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Calendar, Clock, FileText, User, DollarSign, Bell, Briefcase, MessageSquare, Download, Upload, Shield, Settings, AlertCircle } from 'lucide-react';
 import { useClientDashboard, useRealTimeUpdates, type Case } from '@/hooks/useDashboard';
 import { useAuth } from '@/hooks/use-auth';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 
 // Client dashboard stats
 interface ClientDashboardStats {
@@ -524,39 +526,47 @@ const ClientDashboard: React.FC = () => {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 p-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-300 rounded w-1/4 mb-4"></div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-32 bg-gray-300 rounded"></div>
-              ))}
+      <>
+        <Header />
+        <div className="min-h-screen bg-gradient-to-br from-legal-navy/5 to-legal-gold/5 p-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="animate-pulse">
+              <div className="h-8 bg-gray-300 rounded w-1/4 mb-4"></div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="h-32 bg-gray-300 rounded"></div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+        <Footer />
+      </>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 p-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center py-12">
-            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Dashboard</h2>
-            <p className="text-gray-600">Unable to load dashboard data. Please try again.</p>
-            <Button 
-              onClick={() => window.location.reload()} 
-              className="mt-4"
-            >
-              Retry
-            </Button>
+      <>
+        <Header />
+        <div className="min-h-screen bg-gradient-to-br from-legal-navy/5 to-legal-gold/5 p-6">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center py-12">
+              <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-legal-navy mb-2">Error Loading Dashboard</h2>
+              <p className="text-slate-600">Unable to load dashboard data. Please try again.</p>
+              <Button 
+                onClick={() => window.location.reload()} 
+                className="mt-4 bg-legal-gold hover:bg-legal-gold/90 text-legal-navy"
+              >
+                Retry
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+        <Footer />
+      </>
     );
   }
 
@@ -572,39 +582,43 @@ const ClientDashboard: React.FC = () => {
   const displayTimeline = timeline || [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-legal-navy mb-2">Client Dashboard</h1>
-          <p className="text-muted-foreground">Track your cases, communicate with your lawyers, and manage your legal matters.</p>
-        </div>
-
-        {/* Stats Cards */}
-        <ClientHeaderCards stats={displayStats} />
-        
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            <CaseTimelineFeed events={displayTimeline} />
-            <MyCasesTable cases={displayCases} />
-            <DocumentVault />
-            <ClientAIHelp />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ClientCalendar />
-              <BillingPayments />
-            </div>
+    <>
+      <Header />
+      <div className="min-h-screen bg-gradient-to-br from-legal-navy/5 to-legal-gold/5 p-6">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-legal-navy mb-2">Client Dashboard</h1>
+            <p className="text-slate-600">Track your cases, communicate with your lawyers, and manage your legal matters.</p>
           </div>
+
+          {/* Stats Cards */}
+          <ClientHeaderCards stats={displayStats} />
           
-          {/* Right Column - Sidebar */}
-          <div className="space-y-6">
-            <NotificationsDrawer />
-            <ClientProfileSettings />
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Column - Main Content */}
+            <div className="lg:col-span-2 space-y-6">
+              <CaseTimelineFeed events={displayTimeline} />
+              <MyCasesTable cases={displayCases} />
+              <DocumentVault />
+              <ClientAIHelp />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ClientCalendar />
+                <BillingPayments />
+              </div>
+            </div>
+            
+            {/* Right Column - Sidebar */}
+            <div className="space-y-6">
+              <NotificationsDrawer />
+              <ClientProfileSettings />
+            </div>
           </div>
         </div>
       </div>
-    </div>
+      <Footer />
+    </>
   );
 };
 

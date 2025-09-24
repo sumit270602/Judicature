@@ -10,6 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { Calendar, Clock, FileText, Users, DollarSign, AlertCircle, Briefcase, MessageSquare, Bell, TrendingUp } from 'lucide-react';
 import { useLawyerDashboard, useRealTimeUpdates } from '@/hooks/useDashboard';
 import { useAuth } from '@/hooks/use-auth';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 
 // Dashboard stats type
 interface DashboardStats {
@@ -482,39 +484,47 @@ const LawyerDashboard: React.FC = () => {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-legal-navy/5 to-blue-50 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-300 rounded w-1/4 mb-4"></div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-32 bg-gray-300 rounded"></div>
-              ))}
+      <>
+        <Header />
+        <div className="min-h-screen bg-gradient-to-br from-legal-navy/5 to-legal-gold/5 p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="animate-pulse">
+              <div className="h-8 bg-gray-300 rounded w-1/4 mb-4"></div>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-32 bg-gray-300 rounded"></div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+        <Footer />
+      </>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-legal-navy/5 to-blue-50 p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center py-12">
-            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Dashboard</h2>
-            <p className="text-gray-600">Unable to load dashboard data. Please try again.</p>
-            <Button 
-              onClick={() => window.location.reload()} 
-              className="mt-4"
-            >
-              Retry
-            </Button>
+      <>
+        <Header />
+        <div className="min-h-screen bg-gradient-to-br from-legal-navy/5 to-legal-gold/5 p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center py-12">
+              <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-legal-navy mb-2">Error Loading Dashboard</h2>
+              <p className="text-slate-600">Unable to load dashboard data. Please try again.</p>
+              <Button 
+                onClick={() => window.location.reload()} 
+                className="mt-4 bg-legal-gold hover:bg-legal-gold/90 text-legal-navy"
+              >
+                Retry
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+        <Footer />
+      </>
     );
   }
 
@@ -530,41 +540,45 @@ const LawyerDashboard: React.FC = () => {
   const displayCases = cases || [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-legal-navy/5 to-blue-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-legal-navy mb-2">Lawyer Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back! Here's your practice overview for today.</p>
-        </div>
+    <>
+      <Header />
+      <div className="min-h-screen bg-gradient-to-br from-legal-navy/5 to-legal-gold/5 p-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-legal-navy mb-2">Lawyer Dashboard</h1>
+            <p className="text-slate-600">Welcome back! Here's your practice overview for today.</p>
+          </div>
 
-        {/* Stats Cards */}
-        <LawyerHeaderCards stats={displayStats} />
-        
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            <CaseManagementTable cases={displayCases} />
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ClientList />
-              <CourtSchedule />
+          {/* Stats Cards */}
+          <LawyerHeaderCards stats={displayStats} />
+          
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Column - Main Content */}
+            <div className="lg:col-span-2 space-y-6">
+              <CaseManagementTable cases={displayCases} />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <ClientList />
+                <CourtSchedule />
+              </div>
+              
+              <LegalResearch />
+              <DocumentManagement />
             </div>
             
-            <LegalResearch />
-            <DocumentManagement />
-          </div>
-          
-          {/* Right Column - Sidebar */}
-          <div className="space-y-6">
-            <TimeTracking />
-            <TeamCollaboration />
-            <Analytics />
+            {/* Right Column - Sidebar */}
+            <div className="space-y-6">
+              <TimeTracking />
+              <TeamCollaboration />
+              <Analytics />
+            </div>
           </div>
         </div>
       </div>
-    </div>
+      <Footer />
+    </>
   );
 };
 

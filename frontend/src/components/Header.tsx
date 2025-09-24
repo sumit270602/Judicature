@@ -16,14 +16,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Menu, Scale, User, LogOut } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Menu, Scale, User, LogOut, LayoutDashboard } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
 
 const Header = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [address, setAddress] = useState("/");
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const goToDashboard = () => {
+    if (user?.role === 'client') {
+      navigate('/dashboard/client');
+    } else if (user?.role === 'lawyer') {
+      navigate('/dashboard/lawyer');
+    }
+  };
 
   const navigation = [
     { name: 'Home', href: '/' },
@@ -91,6 +100,10 @@ const Header = () => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={goToDashboard}>
+                    <LayoutDashboard className="h-4 w-4 mr-2" />
+                    Go to Dashboard
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => signOut()}>
                     <LogOut className="h-4 w-4 mr-2" />
                     Sign Out
@@ -130,14 +143,24 @@ const Header = () => {
                 ))}
                 <div className="pt-4 border-t space-y-2">
                   {user ? (
-                    <Button 
-                      variant="ghost" 
-                      className="w-full justify-start"
-                      onClick={() => signOut()}
-                    >
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Sign Out
-                    </Button>
+                    <>
+                      <Button 
+                        variant="ghost" 
+                        className="w-full justify-start"
+                        onClick={goToDashboard}
+                      >
+                        <LayoutDashboard className="h-4 w-4 mr-2" />
+                        Go to Dashboard
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        className="w-full justify-start"
+                        onClick={() => signOut()}
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Sign Out
+                      </Button>
+                    </>
                   ) : (
                     <>
                       <Button variant="ghost" className="w-full justify-start" asChild>
