@@ -68,15 +68,16 @@ const getClientStats = async (req, res) => {
     const clientId = req.user.id;
     const now = new Date();
 
-    // Get active cases count
+    // Get active cases count - ensure proper ObjectId conversion
+    const mongoose = require('mongoose');
     const activeCases = await Case.countDocuments({
-      client: clientId,
-      status: { $in: ['active', 'pending'] }
+      client: new mongoose.Types.ObjectId(clientId),
+      status: { $in: ['active', 'pending', 'open'] }
     });
 
     // Get next court date
     const nextCase = await Case.findOne({
-      client: clientId,
+      client: new mongoose.Types.ObjectId(clientId),
       nextHearing: { $gte: now }
     })
     .sort({ nextHearing: 1 })
@@ -103,7 +104,7 @@ const getClientStats = async (req, res) => {
     res.json({
       activeCases,
       nextCourtDate,
-      pendingActions
+      aiAssistantAvailable: true
     });
   } catch (error) {
     console.error('Error fetching client dashboard stats:', error);

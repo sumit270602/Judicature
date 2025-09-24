@@ -1,4 +1,5 @@
 const Message = require('../models/Message');
+const mongoose = require('mongoose');
 
 // Get case-based chat history (existing functionality)
 exports.getChatHistory = async (req, res) => {
@@ -20,7 +21,7 @@ exports.getChatHistory = async (req, res) => {
 // Get direct message conversations for the authenticated user
 exports.getConversations = async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = new mongoose.Types.ObjectId(req.user.id);
     
     // Get all unique conversation partners
     const conversations = await Message.aggregate([
