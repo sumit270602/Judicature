@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useMessaging } from '../hooks/use-messaging';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '@/hooks/use-auth';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -20,7 +20,12 @@ const MessagingDemo: React.FC = () => {
   } = useMessaging(token);
 
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Array<{
+    _id: string;
+    message: string;
+    sender: { _id: string };
+    createdAt: string;
+  }>>([]);
   const [newMessage, setNewMessage] = useState('');
   const [newDirectMessageUserId, setNewDirectMessageUserId] = useState('');
   const [newCaseMessage, setNewCaseMessage] = useState({
@@ -31,7 +36,7 @@ const MessagingDemo: React.FC = () => {
 
   useEffect(() => {
     fetchConversations();
-  }, []);
+  }, [fetchConversations]);
 
   const handleSelectConversation = async (userId: string) => {
     setSelectedConversation(userId);

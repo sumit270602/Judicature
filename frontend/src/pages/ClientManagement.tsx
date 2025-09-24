@@ -4,10 +4,77 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Users, Plus, Search, Phone, Mail, Calendar } from 'lucide-react';
+import { 
+  Users, 
+  Plus, 
+  Search, 
+  Phone, 
+  Mail, 
+  Calendar,
+  ArrowRight,
+  Star,
+  FileText,
+  MessageCircle,
+  BarChart,
+  Shield,
+  Clock,
+  CheckCircle
+} from 'lucide-react';
+import { useAuth } from '@/hooks/use-auth';
+import { useNavigate } from 'react-router-dom';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 
 const ClientManagement = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+
+  const features = [
+    {
+      icon: Users,
+      title: 'Centralized Contacts',
+      description: 'Store all client information in one secure, organized location with easy access'
+    },
+    {
+      icon: FileText,
+      title: 'Case Tracking',
+      description: 'Monitor case progress and maintain detailed client history for better outcomes'
+    },
+    {
+      icon: MessageCircle,
+      title: 'Communication Hub',
+      description: 'Track all interactions and maintain conversation history in one place'
+    },
+    {
+      icon: BarChart,
+      title: 'Client Analytics',
+      description: 'Gain insights into client engagement and case outcomes with detailed reports'
+    },
+    {
+      icon: Shield,
+      title: 'Data Security',
+      description: 'Bank-level encryption ensures client data protection and compliance'
+    },
+    {
+      icon: Clock,
+      title: 'Time Management',
+      description: 'Track billable hours and manage client schedules efficiently'
+    }
+  ];
+
+  const handleTryNow = () => {
+    if (user) {
+      localStorage.setItem('redirectFeature', 'client-management');
+      if (user.role === 'client') {
+        navigate('/dashboard/client');
+      } else if (user.role === 'lawyer') {
+        navigate('/dashboard/lawyer');
+      }
+    } else {
+      navigate('/register?feature=client-management');
+    }
+  };
   
   const clients = [
     {

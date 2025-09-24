@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Scale, Eye, EyeOff } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/hooks/use-auth';
 import { useEffect } from 'react';
 
 const Register = () => {
@@ -51,7 +51,7 @@ const Register = () => {
     const { error } = await signUp(name.trim(), email.trim(), password, role);
     
     if (error) {
-      alert(error.response?.data?.message || 'Registration failed');
+      alert(error.message || 'Registration failed');
     }
     
     setLoading(false);

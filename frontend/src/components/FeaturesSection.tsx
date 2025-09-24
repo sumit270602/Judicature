@@ -1,6 +1,8 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useNavigate } from 'react-router-dom';
 import { 
   FileText, 
   Users, 
@@ -9,10 +11,12 @@ import {
   Shield, 
   Clock,
   MessageCircle,
-  Calendar
+  Calendar,
+  ArrowRight
 } from 'lucide-react';
 
 const FeaturesSection = () => {
+  const navigate = useNavigate();
   const features = [
     {
       icon: FileText,
@@ -99,8 +103,7 @@ const FeaturesSection = () => {
           {features.map((feature, index) => (
             <Card 
               key={index} 
-              className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-0 shadow-sm cursor-pointer"
-              onClick={() => window.location.href = feature.link}
+              className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-0 shadow-sm"
             >
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between mb-3">
@@ -116,9 +119,18 @@ const FeaturesSection = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <CardDescription className="text-gray-600">
+                <CardDescription className="text-gray-600 mb-4">
                   {feature.description}
                 </CardDescription>
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  className="w-full group-hover:bg-legal-navy group-hover:text-white transition-colors"
+                  onClick={() => navigate(feature.link)}
+                >
+                  Try Now
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
               </CardContent>
             </Card>
           ))}

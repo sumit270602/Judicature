@@ -2,33 +2,11 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { register as apiRegister, login as apiLogin, getMe } from '@/api';
 import { jwtDecode } from 'jwt-decode';
 import { useToast } from '@/hooks/use-toast';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  token: string | null;
-  loading: boolean;
-  signUp: (name: string, email: string, password: string, role: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signInWithOAuth: (user: User, token: string) => void;
-  signOut: () => void;
-}
+import type { User, AuthError, AuthContextType } from '@/types/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+export { AuthContext };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -54,7 +32,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const signUp = async (name: string, email: string, password: string, role: string) => {
+  const signUp = async (name: string, email: string, password: string, role: string, redirectFeature?: string) => {
     try {
       const res = await apiRegister({ name, email, password, role });
       const { token, user } = res.data;
@@ -63,21 +41,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(user);
       toast({ title: 'Registration Successful', description: 'Welcome to Judicature!' });
       
+      // Store redirect feature for dashboard navigation
+      if (redirectFeature) {
+        localStorage.setItem('redirectFeature', redirectFeature);
+      }
+      
       // Role-based redirection
-      // if (user.role === 'client') {
-      //   window.location.href = '/client-dashboard';
-      // } else if (user.role === 'lawyer') {
-      //   window.location.href = '/lawyer-dashboard';
-      // }
+      setTimeout(() => {
+        if (user.role === 'client') {
+          window.location.href = '/dashboard/client';
+        } else if (user.role === 'lawyer') {
+          window.location.href = '/dashboard/lawyer';
+        }
+      }, 1000);
       
       return { error: null };
-    } catch (error: any) {
-      toast({ title: 'Registration Error', description: error.response?.data?.message || error.message, variant: 'destructive' });
-      return { error };
+    } catch (error: unknown) {
+      const authError: AuthError = {
+        message: error instanceof Error ? error.message : 'Registration failed',
+        code: 'REGISTRATION_ERROR'
+      };
+      toast({ title: 'Registration Error', description: authError.message, variant: 'destructive' });
+      return { error: authError };
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, redirectFeature?: string) => {
     try {
       const res = await apiLogin({ email, password });
       const { token, user } = res.data;
@@ -86,17 +75,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(user);
       toast({ title: 'Login Successful', description: 'Welcome back!' });
       
-      // // Role-based redirection
-      // if (user.role === 'client') {
-      //   window.location.href = '/dashboard/client';
-      // } else if (user.role === 'lawyer') {
-      //   window.location.href = '/dashboard/lawyer';
-      // }
+      // Store redirect feature for dashboard navigation
+      if (redirectFeature) {
+        localStorage.setItem('redirectFeature', redirectFeature);
+      }
+      
+      // Role-based redirection
+      setTimeout(() => {
+        if (user.role === 'client') {
+          window.location.href = '/dashboard/client';
+        } else if (user.role === 'lawyer') {
+          window.location.href = '/dashboard/lawyer';
+        }
+      }, 1000);
       
       return { error: null };
-    } catch (error: any) {
-      toast({ title: 'Login Error', description: error.response?.data?.message || error.message, variant: 'destructive' });
-      return { error };
+    } catch (error: unknown) {
+      const authError: AuthError = {
+        message: error instanceof Error ? error.message : 'Login failed',
+        code: 'LOGIN_ERROR'
+      };
+      toast({ title: 'Login Error', description: authError.message, variant: 'destructive' });
+      return { error: authError };
     }
   };
 
