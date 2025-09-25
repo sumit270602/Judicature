@@ -13,6 +13,11 @@ const chromaService = require('./utils/chroma');
 const notificationService = require('./utils/notificationService');
 const { initializeLawyerVectors } = require('./utils/vectorSync');
 
+// Import models to ensure they're registered
+const Payment = require('./models/Payment');
+const Invoice = require('./models/Invoice');
+const TimeTracking = require('./models/TimeTracking');
+
 // Load environment variables
 dotenv.config();
 

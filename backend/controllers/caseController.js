@@ -313,4 +313,63 @@ exports.deleteCase = async (req, res) => {
     console.error('Delete case error:', err);
     res.status(500).json({ message: 'Server error while deleting case' });
   }
+};
+
+// Assign lawyer to a case
+exports.assignLawyer = async (req, res) => {
+  try {
+    const { lawyerId } = req.body;
+    const caseId = req.params.id;
+
+    if (!lawyerId) {
+      return res.status(400).json({ message: 'Lawyer ID is required' });
+    }
+
+    // Find the case
+    const caseItem = await Case.findById(caseId);
+    if (!caseItem) {
+      return res.status(404).json({ message: 'Case not found' });
+    }
+
+    // Check if user has permission to assign lawyer to this case
+    const hasPermission = req.user.role === 'admin' || 
+      (req.user.role === 'client' && caseItem.client.toString() === req.user.id);
+    
+    if (!hasPermission) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    // Verify the lawyer
+    const User = require('../models/User');
+    const lawyer = await User.findById(lawyerId);
+    
+    if (!lawyer || lawyer.role !== 'lawyer') {
+      return res.status(400).json({ message: 'Invalid lawyer selection' });
+    }
+    
+    if (!lawyer.canTakeCases()) {
+      return res.status(400).json({ 
+        message: 'Cannot assign case to unverified lawyer',
+        lawyerVerificationStatus: lawyer.verificationStatus
+      });
+    }
+
+    // Assign the lawyer to the case
+    caseItem.lawyer = lawyerId;
+    caseItem.status = 'assigned';
+    await caseItem.save();
+
+    // Populate lawyer details for response
+    await caseItem.populate('lawyer', 'name email practiceAreas experience verificationStatus');
+
+    res.json({
+      success: true,
+      message: 'Lawyer assigned successfully',
+      case: caseItem
+    });
+
+  } catch (err) {
+    console.error('Assign lawyer error:', err);
+    res.status(500).json({ message: 'Server error while assigning lawyer' });
+  }
 }; 

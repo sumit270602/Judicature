@@ -5,8 +5,10 @@ const chromaService = require('../utils/chroma');
 const recommendLawyersForCase = async (req, res) => {
     try {
         const { caseType, caseDescription } = req.body;
+        console.log('Received lawyer recommendation request:', { caseType, caseDescription });
         
         if (!caseType) {
+            console.log('No case type provided');
             return res.status(400).json({ error: 'Case type is required' });
         }
 
@@ -29,7 +31,9 @@ const recommendLawyersForCase = async (req, res) => {
                 'other': ['civil', 'criminal', 'family', 'corporate', 'property', 'labor', 'tax', 'constitutional', 'intellectual', 'other']
             };
             
-            const relevantAreas = practiceAreaMap[caseType] || ['other'];
+            // Make case type matching case-insensitive
+            const normalizedCaseType = caseType.toLowerCase();
+            const relevantAreas = practiceAreaMap[normalizedCaseType] || practiceAreaMap['other'];
             
             const fallbackLawyers = await User.find({
                 role: 'lawyer',
@@ -39,9 +43,36 @@ const recommendLawyersForCase = async (req, res) => {
             }).select('-password').limit(10);
             
             if (fallbackLawyers.length === 0) {
-                return res.json({ 
-                    lawyers: [], 
-                    message: 'No verified lawyers found for this case type. Please try again later or contact support.' 
+                console.log('No verified lawyers found, trying to find any lawyers...');
+                
+                // Try to find any lawyers (even unverified) as a last resort
+                const anyLawyers = await User.find({
+                    role: 'lawyer',
+                    isActive: true
+                }).select('-password').limit(5);
+                
+                if (anyLawyers.length === 0) {
+                    return res.json({ 
+                        lawyers: [], 
+                        message: 'No lawyers found in the system. Please contact support to add lawyers.' 
+                    });
+                }
+                
+                // Convert unverified lawyers to recommendation format
+                const unverifiedRecommendations = anyLawyers.map(lawyer => ({
+                    lawyer: lawyer,
+                    similarity: 0.6, // Lower similarity for unverified
+                    specializations: lawyer.practiceAreas || ['General Practice'],
+                    experience: lawyer.experience || 1,
+                    rating: 3.5, // Default rating for unverified
+                    casesWon: 5 // Default cases won
+                }));
+                
+                return res.json({
+                    caseType: normalizedCaseType,
+                    lawyers: unverifiedRecommendations,
+                    count: unverifiedRecommendations.length,
+                    message: `Found ${unverifiedRecommendations.length} lawyer${unverifiedRecommendations.length > 1 ? 's' : ''} (some may be pending verification).`
                 });
             }
             

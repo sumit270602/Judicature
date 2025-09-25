@@ -12,5 +12,6 @@ router.get('/', caseController.getCases);
 router.get('/:id', caseController.getCaseById);
 router.put('/:id', requireVerificationForCaseActions, caseController.updateCase);
 router.delete('/:id', requireVerificationForCaseActions, caseController.deleteCase);
+router.post('/:id/assign-lawyer', requireVerificationForCaseActions, caseController.assignLawyer);
 
 module.exports = router; 
