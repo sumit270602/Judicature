@@ -44,4 +44,92 @@ exports.deleteUser = async (req, res) => {
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
   }
+};
+
+exports.updateLawyerProfile = async (req, res) => {
+  try {
+    const userId = req.params.id || req.user.id;
+    const {
+      name,
+      email,
+      phone,
+      address,
+      barCouncilId,
+      practiceAreas,
+      experience,
+      hourlyRate,
+      bio
+    } = req.body;
+
+    // Validate required fields for lawyers
+    if (!name || !email || !barCouncilId) {
+      return res.status(400).json({ 
+        message: 'Name, email, and Bar Council ID are required' 
+      });
+    }
+
+    // Validate Bar Council ID format if provided
+    if (barCouncilId && !/^[A-Z]{2}\/\d{4,6}\/\d{4}$/.test(barCouncilId)) {
+      return res.status(400).json({ 
+        message: 'Invalid Bar Council ID format. Expected format: XX/XXXXXX/YYYY' 
+      });
+    }
+
+    // Validate practice areas
+    const validPracticeAreas = [
+      'civil', 'criminal', 'family', 'corporate', 'property', 
+      'labor', 'tax', 'constitutional', 'intellectual', 'other'
+    ];
+    
+    if (practiceAreas && practiceAreas.some(area => !validPracticeAreas.includes(area))) {
+      return res.status(400).json({ 
+        message: 'Invalid practice area provided' 
+      });
+    }
+
+    const updateData = {
+      name,
+      email,
+      phone,
+      address,
+      barCouncilId,
+      practiceAreas: practiceAreas || [],
+      experience: parseInt(experience) || 0,
+      hourlyRate: parseInt(hourlyRate) || 0,
+      bio
+    };
+
+    // Remove undefined values
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
+    });
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Update vector database if this is a lawyer
+    if (updatedUser.role === 'lawyer') {
+      await updateLawyerVector(updatedUser._id.toString(), updatedUser);
+    }
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: updatedUser
+    });
+  } catch (err) {
+    console.error('Error updating lawyer profile:', err);
+    res.status(500).json({ 
+      message: 'Failed to update profile',
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Server error'
+    });
+  }
 }; 

@@ -16,8 +16,20 @@ api.interceptors.request.use((config) => {
 });
 
 // Auth APIs
-export const register = (data: { name: string; email: string; password: string; role: string }) =>
-  api.post('/auth/register', data);
+export const register = (data: { 
+  name: string; 
+  email: string; 
+  password: string; 
+  role: string;
+  // Lawyer-specific fields
+  barCouncilId?: string;
+  practiceAreas?: string[];
+  experience?: number;
+  hourlyRate?: number;
+  bio?: string;
+  phone?: string;
+  address?: string;
+}) => api.post('/auth/register', data);
 
 export const login = (data: { email: string; password: string }) =>
   api.post('/auth/login', data);
@@ -57,4 +69,17 @@ export const getCaseDocuments = (caseId: string) => api.get(`/documents/case/${c
 
 export const downloadDocument = (documentId: string) => api.get(`/documents/download/${documentId}`, {
   responseType: 'blob',
-}); 
+});
+
+// User Profile APIs
+export const updateLawyerProfile = (data: {
+  name: string;
+  email: string;
+  phone?: string;
+  address?: string;
+  barCouncilId: string;
+  practiceAreas: string[];
+  experience: number;
+  hourlyRate: number;
+  bio?: string;
+}) => api.put('/users/profile/lawyer', data); 

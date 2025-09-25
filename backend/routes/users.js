@@ -9,4 +9,8 @@ router.get('/:id', auth, roles('admin'), userController.getUserById);
 router.put('/:id', auth, roles('admin'), userController.updateUser);
 router.delete('/:id', auth, roles('admin'), userController.deleteUser);
 
+// Lawyer profile management
+router.put('/profile/lawyer/:id', auth, userController.updateLawyerProfile);
+router.put('/profile/lawyer', auth, userController.updateLawyerProfile);
+
 module.exports = router; 

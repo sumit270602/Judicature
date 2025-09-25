@@ -5,7 +5,20 @@ const jwt = require('jsonwebtoken');
 // Register new user
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { 
+      name, 
+      email, 
+      password, 
+      role,
+      // Lawyer-specific fields
+      barCouncilId,
+      practiceAreas,
+      experience,
+      hourlyRate,
+      bio,
+      phone,
+      address
+    } = req.body;
 
     // Validation
     if (!name || !email || !password) {
@@ -14,6 +27,20 @@ exports.register = async (req, res) => {
 
     if (!['client', 'lawyer', 'admin'].includes(role)) {
       return res.status(400).json({ message: 'Invalid role specified' });
+    }
+
+    // Additional validation for lawyers
+    if (role === 'lawyer') {
+      if (!barCouncilId || !phone) {
+        return res.status(400).json({ 
+          message: 'Bar Council ID and phone number are required for lawyers' 
+        });
+      }
+      if (!practiceAreas || !Array.isArray(practiceAreas) || practiceAreas.length === 0) {
+        return res.status(400).json({ 
+          message: 'Please select at least one practice area' 
+        });
+      }
     }
 
     // Check if user already exists
@@ -25,14 +52,27 @@ exports.register = async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
     
-    // Create user
-    user = new User({ 
+    // Create user data object
+    const userData = { 
       name: name.trim(), 
       email: email.toLowerCase().trim(), 
       password: hashedPassword, 
       role 
-    });
+    };
+
+    // Add lawyer-specific fields if role is lawyer
+    if (role === 'lawyer') {
+      userData.barCouncilId = barCouncilId.trim();
+      userData.practiceAreas = practiceAreas;
+      userData.experience = parseInt(experience) || 0;
+      userData.hourlyRate = parseInt(hourlyRate) || 0;
+      userData.bio = bio ? bio.trim() : '';
+      userData.phone = phone.trim();
+      userData.address = address ? address.trim() : '';
+    }
     
+    // Create user
+    user = new User(userData);
     await user.save();
 
     // Generate JWT token

@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema({
   barCouncilId: { type: String },
   practiceAreas: [{ 
     type: String, 
-    enum: ['civil', 'criminal', 'family', 'corporate', 'other']
+    enum: ['civil', 'criminal', 'family', 'corporate', 'property', 'labor', 'tax', 'constitutional', 'intellectual', 'other']
   }],
   experience: { type: Number },
   hourlyRate: { type: Number },

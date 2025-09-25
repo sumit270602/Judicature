@@ -21,12 +21,11 @@ const Login = () => {
 
       navigate('/');
 
-      // Role-based redirection
-      // if (user.role === 'client') {
-      //   navigate('/client-dashboard');
-      // } else if (user.role === 'lawyer') {
-      //   navigate('/lawyer-dashboard');
-      // }
+      if (user.role === 'client') {
+        navigate('/dashboard/client');
+      } else if (user.role === 'lawyer') {
+        navigate('/dashboard/lawyer');
+      }
     }
   }, [user, navigate]);
 

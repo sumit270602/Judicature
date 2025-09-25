@@ -7,11 +7,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, Clock, FileText, Users, DollarSign, AlertCircle, Briefcase, MessageSquare, Bell, TrendingUp } from 'lucide-react';
+import { Calendar, Clock, FileText, Users, DollarSign, AlertCircle, Briefcase, MessageSquare, Bell, TrendingUp, User } from 'lucide-react';
 import { useLawyerDashboard, useRealTimeUpdates } from '@/hooks/useDashboard';
 import { useAuth } from '@/hooks/use-auth';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import MessagingTrigger from '@/components/MessagingTrigger';
+import LawyerProfileManagement from '@/components/LawyerProfileManagement';
 
 // Dashboard stats type
 interface DashboardStats {
@@ -545,36 +547,59 @@ const LawyerDashboard: React.FC = () => {
       <div className="min-h-screen bg-gradient-to-br from-legal-navy/5 to-legal-gold/5 pt-24 p-6">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-legal-navy mb-2">Lawyer Dashboard</h1>
-            <p className="text-slate-600">Welcome back! Here's your practice overview for today.</p>
+          <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-legal-navy mb-2">Lawyer Dashboard</h1>
+              <p className="text-slate-600">Welcome back! Here's your practice overview for today.</p>
+            </div>
+            <MessagingTrigger />
           </div>
 
-          {/* Stats Cards */}
-          <LawyerHeaderCards stats={displayStats} />
-          
-          {/* Main Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column - Main Content */}
-            <div className="lg:col-span-2 space-y-6">
-              <CaseManagementTable cases={displayCases} />
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <ClientList />
-                <CourtSchedule />
-              </div>
-              
-              <LegalResearch />
-              <DocumentManagement />
-            </div>
+          {/* Dashboard Tabs */}
+          <Tabs defaultValue="overview" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-8">
+              <TabsTrigger value="overview" className="flex items-center gap-2">
+                <Briefcase className="h-4 w-4" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="profile" className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Professional Profile
+              </TabsTrigger>
+            </TabsList>
             
-            {/* Right Column - Sidebar */}
-            <div className="space-y-6">
-              <TimeTracking />
-              <TeamCollaboration />
-              <Analytics />
-            </div>
-          </div>
+            <TabsContent value="overview">
+              {/* Stats Cards */}
+              <LawyerHeaderCards stats={displayStats} />
+              
+              {/* Main Content Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left Column - Main Content */}
+                <div className="lg:col-span-2 space-y-6">
+                  <CaseManagementTable cases={displayCases} />
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <ClientList />
+                    <CourtSchedule />
+                  </div>
+                  
+                  <LegalResearch />
+                  <DocumentManagement />
+                </div>
+                
+                {/* Right Column - Sidebar */}
+                <div className="space-y-6">
+                  <TimeTracking />
+                  <TeamCollaboration />
+                  <Analytics />
+                </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="profile">
+              <LawyerProfileManagement />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
       <Footer />

@@ -44,6 +44,8 @@ import { useToast } from '@/hooks/use-toast';
 import { getCaseById, getCaseDocuments, downloadDocument, uploadCaseDocument, updateCase } from '@/api';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import LinkedInMessaging from '@/components/LinkedInMessaging';
+import { useMessaging } from '@/hooks/use-messaging';
 
 // Types
 interface CaseDocument {
@@ -104,6 +106,34 @@ const CaseDetails: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showNoteDialog, setShowNoteDialog] = useState(false);
+  const [showMessaging, setShowMessaging] = useState(false);
+
+  // Get messaging hook
+  const { sendDirectMessage, loadConversation } = useMessaging();
+
+  // Handle messaging to lawyer
+  const handleMessageLawyer = async () => {
+    if (!caseData?.lawyer?._id) {
+      toast({
+        title: "Error",
+        description: "No lawyer assigned to this case",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Load existing conversation with the lawyer (this will create one if it doesn't exist)
+      await loadConversation(caseData.lawyer._id);
+      
+      // Open messaging popup
+      setShowMessaging(true);
+    } catch (error) {
+      console.error('Error loading conversation:', error);
+      // Still open messaging popup - the conversation will be created when first message is sent
+      setShowMessaging(true);
+    }
+  };
 
   // Fetch case details and documents
 
@@ -670,7 +700,12 @@ const CaseDetails: React.FC = () => {
                     )}
 
                     <div className="flex gap-2 mt-4">
-                      <Button variant="outline" size="sm" className="flex-1">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={handleMessageLawyer}
+                      >
                         <MessageSquare className="h-4 w-4 mr-2" />
                         Message
                       </Button>
@@ -808,6 +843,18 @@ const CaseDetails: React.FC = () => {
         </div>
       </div>
       <Footer />
+      
+      {/* LinkedIn-style Messaging */}
+      <LinkedInMessaging
+        isOpen={showMessaging}
+        onClose={() => setShowMessaging(false)}
+        targetUserId={caseData?.lawyer?._id}
+        targetUser={caseData?.lawyer ? {
+          _id: caseData.lawyer._id,
+          name: caseData.lawyer.name,
+          role: 'lawyer'
+        } : undefined}
+      />
     </>
   );
 };

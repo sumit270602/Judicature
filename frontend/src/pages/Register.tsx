@@ -24,9 +24,9 @@ const Register = () => {
   useEffect(() => {
     if (user) {
       if (user.role === 'client') {
-        navigate('/client-dashboard');
+        navigate('/dashboard/client');
       } else if (user.role === 'lawyer') {
-        navigate('/lawyer-dashboard');
+        navigate('/dashboard/lawyer');
       } else {
         navigate('/');
       }

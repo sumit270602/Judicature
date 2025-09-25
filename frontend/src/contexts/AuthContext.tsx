@@ -32,28 +32,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const signUp = async (name: string, email: string, password: string, role: string, redirectFeature?: string) => {
+  const signUp = async (
+    name: string, 
+    email: string, 
+    password: string, 
+    role: string, 
+    lawyerProfile?: {
+      barCouncilId: string;
+      practiceAreas: string[];
+      experience: number;
+      hourlyRate: number;
+      bio: string;
+      phone: string;
+      address: string;
+    }
+  ) => {
     try {
-      const res = await apiRegister({ name, email, password, role });
+      const registrationData = { 
+        name, 
+        email, 
+        password, 
+        role,
+        ...(role === 'lawyer' && lawyerProfile ? lawyerProfile : {})
+      };
+      
+      const res = await apiRegister(registrationData);
       const { token, user } = res.data;
       localStorage.setItem('token', token);
       setToken(token);
       setUser(user);
-      toast({ title: 'Registration Successful', description: 'Welcome to Judicature!' });
       
-      // Store redirect feature for dashboard navigation
-      if (redirectFeature) {
-        localStorage.setItem('redirectFeature', redirectFeature);
-      }
-      
-      // Role-based redirection
-      setTimeout(() => {
-        if (user.role === 'client') {
-          window.location.href = '/dashboard/client';
-        } else if (user.role === 'lawyer') {
-          window.location.href = '/dashboard/lawyer';
-        }
-      }, 1000);
+      const successMessage = role === 'lawyer' 
+        ? 'Registration successful! Please wait for admin verification to access all features.'
+        : 'Welcome to Judicature!';
+        
+      toast({ title: 'Registration Successful', description: successMessage });
       
       return { error: null };
     } catch (error: unknown) {
