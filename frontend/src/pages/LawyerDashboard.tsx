@@ -14,6 +14,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import MessagingTrigger from '@/components/MessagingTrigger';
 import LawyerProfileManagement from '@/components/LawyerProfileManagement';
+import LawyerServiceManagement from '@/components/LawyerServiceManagement';
 
 // Dashboard stats type
 interface DashboardStats {
@@ -557,10 +558,14 @@ const LawyerDashboard: React.FC = () => {
 
           {/* Dashboard Tabs */}
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-8">
+            <TabsList className="grid w-full grid-cols-3 mb-8">
               <TabsTrigger value="overview" className="flex items-center gap-2">
                 <Briefcase className="h-4 w-4" />
                 Overview
+              </TabsTrigger>
+              <TabsTrigger value="services" className="flex items-center gap-2">
+                <FileText className="h-4 w-4" />
+                Services & Pricing
               </TabsTrigger>
               <TabsTrigger value="profile" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
@@ -594,6 +599,10 @@ const LawyerDashboard: React.FC = () => {
                   <Analytics />
                 </div>
               </div>
+            </TabsContent>
+            
+            <TabsContent value="services">
+              <LawyerServiceManagement />
             </TabsContent>
             
             <TabsContent value="profile">

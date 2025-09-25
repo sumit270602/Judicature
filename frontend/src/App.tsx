@@ -27,6 +27,7 @@ import MessagingDemo from "./pages/MessagingDemo";
 import AuthSuccess from "./pages/AuthSuccess";
 import CreateCase from "./pages/CreateCase";
 import CaseDetails from "./pages/CaseDetails";
+import ServiceDiscovery from "./pages/ServiceDiscovery";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +61,7 @@ const App = () => (
             <Route path="/auth/success" element={<AuthSuccess />} />
             <Route path="/create-case" element={<CreateCase />} />
             <Route path="/case/:caseId" element={<CaseDetails />} />
+            <Route path="/services" element={<ServiceDiscovery />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

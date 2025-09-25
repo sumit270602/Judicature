@@ -27,6 +27,36 @@ const caseSchema = new mongoose.Schema(
       required: true 
     },
     
+    // Service-based case creation (NEW)
+    selectedService: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'LegalService',
+      required: false // Optional for backward compatibility
+    },
+    serviceCategory: {
+      type: String,
+      enum: ['personal_family', 'criminal_property', 'civil_debt', 'corporate_law', 'others'],
+      required: false
+    },
+    serviceType: {
+      type: String,
+      required: false
+    },
+    agreedPricing: {
+      type: {
+        type: String,
+        enum: ['fixed', 'hourly', 'range']
+      },
+      amount: Number,
+      minAmount: Number,
+      maxAmount: Number,
+      hourlyRate: Number,
+      currency: {
+        type: String,
+        default: 'INR'
+      }
+    },
+    
     // Status and Priority
     status: {
       type: String,

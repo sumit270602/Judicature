@@ -4,7 +4,17 @@ const { updateLawyerVector } = require('./recommendationController');
 
 exports.createCase = async (req, res) => {
   try {
-    const { title, description, caseType, lawyer, priority } = req.body;
+    const { 
+      title, 
+      description, 
+      caseType, 
+      lawyer, 
+      priority,
+      // Service-based fields
+      selectedService,
+      serviceCategory,
+      serviceType
+    } = req.body;
     
     // Validation
     if (!title || !description || !caseType) {
@@ -68,7 +78,8 @@ exports.createCase = async (req, res) => {
 
     while (saveAttempts < maxSaveAttempts) {
       try {
-        newCase = new Case({
+        // Prepare case data
+        const caseData = {
           caseNumber,
           title: title.trim(),
           description: description.trim(),
@@ -76,7 +87,34 @@ exports.createCase = async (req, res) => {
           client: req.user.id,
           lawyer: lawyer || undefined,
           priority: priority || 'medium'
-        });
+        };
+
+        // Add service-based fields if provided
+        if (selectedService) {
+          caseData.selectedService = selectedService;
+        }
+        if (serviceCategory) {
+          caseData.serviceCategory = serviceCategory;
+        }
+        if (serviceType) {
+          caseData.serviceType = serviceType;
+        }
+
+        // If service is selected, try to get pricing information
+        if (selectedService) {
+          try {
+            const LegalService = require('../models/LegalService');
+            const service = await LegalService.findById(selectedService);
+            if (service) {
+              caseData.agreedPricing = service.pricing;
+            }
+          } catch (serviceError) {
+            console.log('Could not fetch service pricing:', serviceError.message);
+            // Continue without pricing info
+          }
+        }
+
+        newCase = new Case(caseData);
         
         await newCase.save();
         break; // Success

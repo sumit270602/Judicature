@@ -58,6 +58,15 @@ export const getLawyerRecommendations = (data: {
   priority: string;
 }) => api.post('/recommendations/lawyers-for-case', data);
 
+// Service-based lawyer recommendations
+export const getServiceBasedLawyerRecommendations = (data: {
+  serviceId?: string;
+  serviceCategory?: string;
+  serviceType?: string;
+  caseDescription: string;
+  priority: string;
+}) => api.post('/recommendations/lawyers-for-service', data);
+
 // Document APIs
 export const uploadCaseDocument = (formData: FormData) => api.post('/documents/case/upload', formData, {
   headers: {
@@ -82,4 +91,63 @@ export const updateLawyerProfile = (data: {
   experience: number;
   hourlyRate: number;
   bio?: string;
-}) => api.put('/users/profile/lawyer', data); 
+}) => api.put('/users/profile/lawyer', data);
+
+// Legal Services APIs
+export const getServiceCategories = () => api.get('/services/categories');
+
+export const createLegalService = (data: {
+  category: string;
+  serviceType: string;
+  title: string;
+  description: string;
+  pricing: {
+    type: 'fixed' | 'hourly' | 'range';
+    amount?: number;
+    minAmount?: number;
+    maxAmount?: number;
+    hourlyRate?: number;
+    currency?: string;
+  };
+  estimatedDuration: string;
+  requirements?: string[];
+  deliverables?: string[];
+  metrics?: {
+    experienceYears?: number;
+    successRate?: number;
+    casesHandled?: number;
+  };
+  availability?: {
+    isAcceptingClients?: boolean;
+    maxCasesPerMonth?: number;
+  };
+}) => api.post('/services', data);
+
+export const getLawyerServices = (lawyerId?: string) => 
+  lawyerId ? api.get(`/services/lawyer/${lawyerId}`) : api.get('/services/my-services');
+
+export const updateLegalService = (serviceId: string, data: any) => 
+  api.put(`/services/${serviceId}`, data);
+
+export const deleteLegalService = (serviceId: string) => 
+  api.delete(`/services/${serviceId}`);
+
+export const getServicesByCategory = (category: string, params?: {
+  minPrice?: number;
+  maxPrice?: number;
+  sortBy?: string;
+}) => api.get(`/services/category/${category}`, { params });
+
+export const getServicesByType = (serviceType: string, params?: {
+  minPrice?: number;
+  maxPrice?: number;
+  sortBy?: string;
+}) => api.get(`/services/type/${serviceType}`, { params });
+
+export const searchServices = (params: {
+  query: string;
+  category?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  sortBy?: string;
+}) => api.get('/services/search', { params }); 

@@ -55,8 +55,13 @@ const HeroSection = () => {
                 Start Free Trial
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-              <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-legal-navy px-8">
-                Watch Demo
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="border-white text-white hover:bg-white hover:text-legal-navy px-8"
+                onClick={() => window.location.href = '/services'}
+              >
+                Find Services
               </Button>
             </div>
 

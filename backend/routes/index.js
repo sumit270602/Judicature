@@ -12,5 +12,6 @@ router.use('/dashboard', require('./dashboard'));
 router.use('/documents', require('./documents'));
 router.use('/notifications', require('./notifications'));
 router.use('/search', require('./search'));
+router.use('/services', require('./services'));
 
 module.exports = router; 

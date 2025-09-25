@@ -30,7 +30,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { createCase, getLawyerRecommendations, uploadCaseDocument } from '@/api';
+import { createCase, getLawyerRecommendations, uploadCaseDocument, getServiceCategories, getServicesByCategory, getServiceBasedLawyerRecommendations } from '@/api';
 
 // Types
 interface LawyerRecommendation {
@@ -48,6 +48,22 @@ interface LawyerRecommendation {
   experience: number;
   rating: number;
   casesWon: number;
+  // Service-specific fields for service-based recommendations
+  services?: Array<{
+    id: string;
+    title: string;
+    description: string;
+    pricing: {
+      type: 'fixed' | 'hourly' | 'range';
+      amount?: number;
+      minAmount?: number;
+      maxAmount?: number;
+      hourlyRate?: number;
+    };
+    estimatedDuration?: string;
+    category: string;
+    serviceType: string;
+  }>;
 }
 
 interface CaseFormData {
@@ -56,6 +72,11 @@ interface CaseFormData {
   caseType: string;
   priority: string;
   lawyer?: string;
+  // Service-based fields
+  serviceCategory?: string;
+  serviceType?: string;
+  selectedService?: string;
+  useServiceBased?: boolean;
 }
 
 const CreateCase: React.FC = () => {
@@ -69,22 +90,47 @@ const CreateCase: React.FC = () => {
     console.log('Current user:', user);
     console.log('Token in localStorage:', localStorage.getItem('token'));
   }, [user]);
-  
+
+  // Load service categories on component mount
+  useEffect(() => {
+    const loadServiceCategories = async () => {
+      try {
+        const response = await getServiceCategories();
+        if (response.data?.categories) {
+          setServiceCategories(response.data.categories);
+        }
+      } catch (error) {
+        console.error('Error loading service categories:', error);
+      }
+    };
+
+    loadServiceCategories();
+  }, []);
+
   const [formData, setFormData] = useState<CaseFormData>({
     title: '',
     description: '',
     caseType: '',
     priority: 'medium',
-    lawyer: undefined
+    lawyer: undefined,
+    serviceCategory: undefined,
+    serviceType: undefined,
+    selectedService: undefined,
+    useServiceBased: true // Default to service-based case creation
   });
   
   const [recommendations, setRecommendations] = useState<LawyerRecommendation[]>([]);
   const [selectedLawyer, setSelectedLawyer] = useState<string | null>(null);
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errors, setErrors] = useState<Partial<CaseFormData>>({});
+  const [errors, setErrors] = useState<Partial<CaseFormData & { serviceCategory?: string; serviceType?: string; }>>({});
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  
+  // Service-based state
+  const [serviceCategories, setServiceCategories] = useState<any>({});
+  const [availableServices, setAvailableServices] = useState<any[]>([]);
+  const [isLoadingServices, setIsLoadingServices] = useState(false);
 
   const caseTypes = [
     { value: 'civil', label: 'Civil Law' },
@@ -100,24 +146,84 @@ const CreateCase: React.FC = () => {
     { value: 'high', label: 'High Priority' }
   ];
 
-  // Fetch lawyer recommendations when case type and description are available
+  // Load services when category is selected
+  useEffect(() => {
+    const loadServices = async () => {
+      if (formData.serviceCategory) {
+        setIsLoadingServices(true);
+        try {
+          const response = await getServicesByCategory(formData.serviceCategory);
+          if (response.data?.services) {
+            setAvailableServices(response.data.services);
+          }
+        } catch (error) {
+          console.error('Error loading services:', error);
+          setAvailableServices([]);
+        } finally {
+          setIsLoadingServices(false);
+        }
+      } else {
+        setAvailableServices([]);
+      }
+    };
+
+    loadServices();
+  }, [formData.serviceCategory]);
+
+  // Fetch lawyer recommendations when case details are available
   useEffect(() => {
     const fetchRecommendations = async () => {
-      if (formData.caseType && formData.description.length > 20) {
+      if (formData.description.length > 20) {
         setIsLoadingRecommendations(true);
         try {
-          const response = await getLawyerRecommendations({
-            caseType: formData.caseType,
-            caseDescription: formData.description,
-            priority: formData.priority
-          });
+          let response;
           
-          if (response.data) {
+          // Use service-based recommendations if service is selected
+          if (formData.useServiceBased && (formData.serviceCategory || formData.serviceType || formData.selectedService)) {
+            response = await getServiceBasedLawyerRecommendations({
+              serviceId: formData.selectedService,
+              serviceCategory: formData.serviceCategory,
+              serviceType: formData.serviceType,
+              caseDescription: formData.description,
+              priority: formData.priority
+            });
+          } 
+          // Fall back to traditional case type recommendations
+          else if (formData.caseType) {
+            response = await getLawyerRecommendations({
+              caseType: formData.caseType,
+              caseDescription: formData.description,
+              priority: formData.priority
+            });
+          }
+          // If service-based is enabled but no service selected yet, and no case type, show general recommendations
+          else if (formData.useServiceBased && !formData.caseType) {
+            // Auto-set a default case type to get some recommendations
+            const defaultCaseType = 'other';
+            response = await getLawyerRecommendations({
+              caseType: defaultCaseType,
+              caseDescription: formData.description,
+              priority: formData.priority
+            });
+          }
+          
+          if (response?.data) {
+            console.log('Recommendations response:', response.data);
+            console.log('Lawyers found:', response.data.lawyers?.length || 0);
             setRecommendations(response.data.lawyers || []);
+          } else {
+            console.log('No response data received');
           }
         } catch (error: any) {
           console.error('Error fetching recommendations:', error);
           console.error('Recommendations error response:', error.response?.data);
+          console.error('Request details:', {
+            useServiceBased: formData.useServiceBased,
+            serviceCategory: formData.serviceCategory,
+            serviceType: formData.serviceType,
+            caseType: formData.caseType,
+            descriptionLength: formData.description.length
+          });
           // Don't show error toast for recommendations, just log it
         } finally {
           setIsLoadingRecommendations(false);
@@ -127,9 +233,9 @@ const CreateCase: React.FC = () => {
 
     const timeoutId = setTimeout(fetchRecommendations, 500); // Debounce
     return () => clearTimeout(timeoutId);
-  }, [formData.caseType, formData.description]);
+  }, [formData.caseType, formData.description, formData.serviceCategory, formData.serviceType, formData.selectedService, formData.useServiceBased, formData.priority]);
 
-  const handleInputChange = (field: keyof CaseFormData, value: string) => {
+  const handleInputChange = (field: keyof CaseFormData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (errors[field]) {
@@ -150,8 +256,18 @@ const CreateCase: React.FC = () => {
       newErrors.description = 'Description must be at least 20 characters';
     }
     
-    if (!formData.caseType) {
-      newErrors.caseType = 'Case type is required';
+    // Validate case type or service selection
+    if (formData.useServiceBased) {
+      if (!formData.serviceCategory) {
+        newErrors.serviceCategory = 'Service category is required';
+      }
+      if (!formData.serviceType) {
+        newErrors.serviceType = 'Specific service is required';
+      }
+    } else {
+      if (!formData.caseType) {
+        newErrors.caseType = 'Case type is required';
+      }
     }
 
     setErrors(newErrors);
@@ -170,7 +286,13 @@ const CreateCase: React.FC = () => {
     try {
       const caseData = {
         ...formData,
-        lawyer: selectedLawyer || undefined
+        lawyer: selectedLawyer || undefined,
+        // Include service data if using service-based creation
+        ...(formData.useServiceBased && {
+          selectedService: formData.selectedService,
+          serviceCategory: formData.serviceCategory,
+          serviceType: formData.serviceType
+        })
       };
 
       const response = await createCase(caseData);
@@ -359,9 +481,91 @@ const CreateCase: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Case Type */}
-                    <div className="space-y-2">
-                      <Label htmlFor="caseType">Case Type *</Label>
+                    {/* Service Selection Mode Toggle */}
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="useServiceBased"
+                          checked={formData.useServiceBased}
+                          onChange={(e) => handleInputChange('useServiceBased', e.target.checked)}
+                        />
+                        <Label htmlFor="useServiceBased" className="text-sm">
+                          Use service-based case creation (Recommended)
+                        </Label>
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        Service-based creation helps you find lawyers who specialize in your specific legal need with transparent pricing.
+                      </p>
+                    </div>
+
+                    {/* Service Selection - Show when service-based is enabled */}
+                    {formData.useServiceBased && (
+                      <>
+                        {/* Service Category */}
+                        <div className="space-y-2">
+                          <Label htmlFor="serviceCategory">Legal Service Category *</Label>
+                          <Select
+                            value={formData.serviceCategory || ''}
+                            onValueChange={(value) => {
+                              handleInputChange('serviceCategory', value);
+                              // Reset dependent fields
+                              handleInputChange('serviceType', '');
+                              handleInputChange('selectedService', '');
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select service category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(serviceCategories).map(([key, category]: [string, any]) => (
+                                <SelectItem key={key} value={key}>
+                                  {category.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {/* Service Type */}
+                        {formData.serviceCategory && serviceCategories[formData.serviceCategory] && (
+                          <div className="space-y-2">
+                            <Label htmlFor="serviceType">Specific Service *</Label>
+                            <Select
+                              value={formData.serviceType || ''}
+                              onValueChange={(value) => {
+                                handleInputChange('serviceType', value);
+                                // Auto-set case type based on service category
+                                const categoryToCaseType: { [key: string]: string } = {
+                                  'personal_family': 'family',
+                                  'criminal_property': 'criminal',
+                                  'civil_debt': 'civil',
+                                  'corporate_law': 'corporate',
+                                  'others': 'other'
+                                };
+                                handleInputChange('caseType', categoryToCaseType[formData.serviceCategory] || 'other');
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select specific service" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {serviceCategories[formData.serviceCategory].services.map((service: any) => (
+                                  <SelectItem key={service.type} value={service.type}>
+                                    {service.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {/* Traditional Case Type - Show when service-based is disabled */}
+                    {!formData.useServiceBased && (
+                      <div className="space-y-2">
+                        <Label htmlFor="caseType">Case Type *</Label>
                       <Select
                         value={formData.caseType}
                         onValueChange={(value) => handleInputChange('caseType', value)}
@@ -380,7 +584,8 @@ const CreateCase: React.FC = () => {
                       {errors.caseType && (
                         <p className="text-sm text-red-500">{errors.caseType}</p>
                       )}
-                    </div>
+                      </div>
+                    )}
 
                     {/* Priority */}
                     <div className="space-y-2">
@@ -540,7 +745,7 @@ const CreateCase: React.FC = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {formData.caseType && formData.description.length > 20 ? (
+                  {((formData.caseType) || (formData.useServiceBased && (formData.serviceCategory || formData.serviceType))) && formData.description.length > 20 ? (
                     <>
                       {isLoadingRecommendations ? (
                         <div className="flex items-center justify-center py-8">
@@ -597,13 +802,54 @@ const CreateCase: React.FC = () => {
                                         </div>
                                       </div>
                                       
-                                      <div className="flex flex-wrap gap-1">
-                                        {rec.specializations.slice(0, 2).map((spec, idx) => (
-                                          <Badge key={idx} variant="outline" className="text-xs">
-                                            {spec}
-                                          </Badge>
-                                        ))}
-                                      </div>
+                                      {/* Show services if service-based recommendations */}
+                                      {rec.services && rec.services.length > 0 ? (
+                                        <div className="space-y-2">
+                                          <div className="text-xs font-medium text-legal-navy">
+                                            Available Services:
+                                          </div>
+                                          {rec.services.slice(0, 2).map((service: any, idx: number) => (
+                                            <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
+                                              <div className="font-medium">{service.title}</div>
+                                              <div className="text-muted-foreground text-xs mt-1">
+                                                {service.pricing.type === 'fixed' && (
+                                                  <span className="text-green-600 font-medium">
+                                                    ₹{service.pricing.amount?.toLocaleString()} fixed
+                                                  </span>
+                                                )}
+                                                {service.pricing.type === 'hourly' && (
+                                                  <span className="text-blue-600 font-medium">
+                                                    ₹{service.pricing.hourlyRate?.toLocaleString()}/hour
+                                                  </span>
+                                                )}
+                                                {service.pricing.type === 'range' && (
+                                                  <span className="text-purple-600 font-medium">
+                                                    ₹{service.pricing.minAmount?.toLocaleString()} - ₹{service.pricing.maxAmount?.toLocaleString()}
+                                                  </span>
+                                                )}
+                                                {service.estimatedDuration && (
+                                                  <span className="ml-2 text-gray-500">
+                                                    • {service.estimatedDuration}
+                                                  </span>
+                                                )}
+                                              </div>
+                                            </div>
+                                          ))}
+                                          {rec.services.length > 2 && (
+                                            <div className="text-xs text-muted-foreground">
+                                              +{rec.services.length - 2} more services
+                                            </div>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <div className="flex flex-wrap gap-1">
+                                          {rec.specializations.slice(0, 2).map((spec, idx) => (
+                                            <Badge key={idx} variant="outline" className="text-xs">
+                                              {spec}
+                                            </Badge>
+                                          ))}
+                                        </div>
+                                      )}
                                       
                                       <div className="text-xs text-legal-navy font-medium">
                                         {Math.round(rec.similarity * 100)}% match
@@ -636,7 +882,10 @@ const CreateCase: React.FC = () => {
                     <Alert>
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription>
-                        Fill in the case type and description (min 20 characters) to see lawyer recommendations.
+                        {formData.useServiceBased 
+                          ? "Select a service category and add a description (min 20 characters) to see lawyer recommendations."
+                          : "Fill in the case type and description (min 20 characters) to see lawyer recommendations."
+                        }
                       </AlertDescription>
                     </Alert>
                   )}
