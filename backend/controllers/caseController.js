@@ -109,7 +109,6 @@ exports.createCase = async (req, res) => {
               caseData.agreedPricing = service.pricing;
             }
           } catch (serviceError) {
-            console.log('Could not fetch service pricing:', serviceError.message);
             // Continue without pricing info
           }
         }
@@ -126,7 +125,6 @@ exports.createCase = async (req, res) => {
           const timestamp = Date.now().toString().slice(-8);
           const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
           caseNumber = `CASE-${year}-T${timestamp}${random}`;
-          console.log(`Duplicate case number, retrying with: ${caseNumber}`);
           continue;
         } else {
           throw error; // Re-throw if not duplicate or max attempts reached
@@ -142,6 +140,39 @@ exports.createCase = async (req, res) => {
     const populatedCase = await Case.findById(newCase._id)
       .populate('client', 'name email role')
       .populate('lawyer', 'name email role verificationStatus');
+    
+    // Create notification for case creation
+    const Notification = require('../models/Notification');
+    
+    // Notify client
+    const clientNotification = new Notification({
+      recipient: populatedCase.client._id,
+      type: 'system',
+      title: 'Case Created Successfully',
+      message: `Your case "${populatedCase.title}" has been created${populatedCase.lawyer ? ` and assigned to ${populatedCase.lawyer.name}` : ' and is awaiting lawyer assignment'}.`,
+      relatedCase: populatedCase._id,
+      priority: 'medium',
+      actionRequired: false,
+      actionUrl: `/case/${populatedCase._id}/view`
+    });
+    
+    await clientNotification.save();
+    
+    // Notify lawyer if assigned
+    if (populatedCase.lawyer) {
+      const lawyerNotification = new Notification({
+        recipient: populatedCase.lawyer._id,
+        type: 'system',
+        title: 'New Case Assigned',
+        message: `A new case "${populatedCase.title}" has been assigned to you by ${populatedCase.client.name}.`,
+        relatedCase: populatedCase._id,
+        priority: 'high',
+        actionRequired: true,
+        actionUrl: `/case/${populatedCase._id}/view`
+      });
+      
+      await lawyerNotification.save();
+    }
     
     res.status(201).json({ 
       success: true, 
@@ -258,6 +289,16 @@ exports.updateCase = async (req, res) => {
       { new: true, runValidators: true }
     ).populate('client lawyer', 'name email role');
     
+    // Auto-create payment request if case is marked as completed/closed with agreed pricing
+    if ((updates.status === 'closed' || updates.status === 'completed') && updated.lawyer && updated.agreedPricing) {
+      try {
+        await this.createAutoPaymentRequest(updated);
+      } catch (paymentError) {
+        console.error('Error creating automatic payment request:', paymentError);
+        // Don't fail the case update if payment request creation fails
+      }
+    }
+
     // Update lawyer's Redis vector if case status changed to "closed" and lawyer won
     if (updates.status === 'closed' && updated.lawyer) {
       try {
@@ -288,7 +329,8 @@ exports.updateCase = async (req, res) => {
 
 exports.deleteCase = async (req, res) => {
   try {
-    const caseItem = await Case.findById(req.params.id);
+    const caseItem = await Case.findById(req.params.id)
+      .populate('client lawyer', 'name email role');
     
     if (!caseItem) {
       return res.status(404).json({ message: 'Case not found' });
@@ -297,13 +339,36 @@ exports.deleteCase = async (req, res) => {
     // Only admin or case client can delete
     const hasPermission = 
       req.user.role === 'admin' ||
-      caseItem.client.toString() === req.user.id;
+      caseItem.client._id.toString() === req.user.id;
     
     if (!hasPermission) {
       return res.status(403).json({ message: 'Access denied' });
     }
     
+    // Store case info before deletion
+    const caseTitle = caseItem.title;
+    const caseNumber = caseItem.caseNumber;
+    const clientId = caseItem.client._id;
+    const lawyerId = caseItem.lawyer?._id;
+    const lawyerName = caseItem.lawyer?.name;
+    const clientName = caseItem.client.name;
+    
     await Case.findByIdAndDelete(req.params.id);
+    
+    // Create notification for lawyer if assigned
+    if (lawyerId) {
+      const Notification = require('../models/Notification');
+      const lawyerNotification = new Notification({
+        recipient: lawyerId,
+        type: 'system',
+        title: 'Case Deleted',
+        message: `Case "${caseTitle}" (${caseNumber}) has been deleted by ${clientName}.`,
+        priority: 'medium',
+        actionRequired: false
+      });
+      
+      await lawyerNotification.save();
+    }
     
     res.json({ 
       success: true, 
@@ -359,8 +424,39 @@ exports.assignLawyer = async (req, res) => {
     caseItem.status = 'assigned';
     await caseItem.save();
 
-    // Populate lawyer details for response
-    await caseItem.populate('lawyer', 'name email practiceAreas experience verificationStatus');
+    // Populate lawyer and client details for notifications
+    await caseItem.populate('lawyer client', 'name email practiceAreas experience verificationStatus');
+
+    // Create notifications for lawyer assignment
+    const Notification = require('../models/Notification');
+    
+    // Notify the lawyer
+    const lawyerNotification = new Notification({
+      recipient: lawyerId,
+      type: 'system',
+      title: 'New Case Assigned',
+      message: `You have been assigned to case "${caseItem.title}" by ${caseItem.client.name}.`,
+      relatedCase: caseItem._id,
+      priority: 'high',
+      actionRequired: true,
+      actionUrl: `/case/${caseItem._id}/view`
+    });
+    
+    await lawyerNotification.save();
+    
+    // Notify the client
+    const clientNotification = new Notification({
+      recipient: caseItem.client._id,
+      type: 'system',
+      title: 'Lawyer Assigned',
+      message: `${caseItem.lawyer.name} has been assigned to your case "${caseItem.title}".`,
+      relatedCase: caseItem._id,
+      priority: 'medium',
+      actionRequired: false,
+      actionUrl: `/case/${caseItem._id}/view`
+    });
+    
+    await clientNotification.save();
 
     res.json({
       success: true,
@@ -371,5 +467,349 @@ exports.assignLawyer = async (req, res) => {
   } catch (err) {
     console.error('Assign lawyer error:', err);
     res.status(500).json({ message: 'Server error while assigning lawyer' });
+  }
+};
+
+// Helper method to create automatic payment request when case is completed
+exports.createAutoPaymentRequest = async (caseItem) => {
+  try {
+    const PaymentRequest = require('../models/PaymentRequest');
+    const Notification = require('../models/Notification');
+    const notificationService = require('../utils/notificationService');
+
+    // Validate required data
+    if (!caseItem.lawyer || !caseItem.client) {
+      console.log(`Case ${caseItem.caseNumber}: Missing lawyer or client, skipping auto payment request`);
+      return;
+    }
+
+    // Determine payment amount - use agreed pricing if available, otherwise default to 0
+    const paymentAmount = caseItem.agreedPricing?.amount || 0;
+    const currency = caseItem.agreedPricing?.currency || 'INR';
+    
+    console.log(`Case ${caseItem.caseNumber}: Creating payment request with amount: ${paymentAmount} ${currency}`);
+
+    // Check if payment request already exists for this case
+    const existingRequest = await PaymentRequest.findOne({
+      'metadata.caseId': caseItem._id,
+      status: { $nin: ['cancelled', 'rejected'] }
+    });
+
+    if (existingRequest) {
+      console.log(`Case ${caseItem.caseNumber}: Payment request already exists, skipping`);
+      return;
+    }
+
+    // Determine service type from case type or service type
+    const serviceType = caseItem.serviceType || caseItem.caseType || 'other';
+    const validServiceTypes = ['consultation', 'document_review', 'contract_drafting', 'legal_research', 'court_representation', 'legal_notice', 'other'];
+    const finalServiceType = validServiceTypes.includes(serviceType) ? serviceType : 'other';
+
+    // Create payment request description
+    const description = `Payment for completed legal work on case: ${caseItem.title}. ${caseItem.description}`;
+
+    // Generate unique requestId manually to avoid middleware issues
+    const count = await PaymentRequest.countDocuments();
+    const requestId = `PAY-${String(count + 1).padStart(6, '0')}`;
+
+    // Create the payment request
+    const paymentRequest = new PaymentRequest({
+      requestId: requestId,
+      lawyer: caseItem.lawyer._id,
+      client: caseItem.client._id,
+      amount: paymentAmount,
+      currency: currency,
+      serviceType: finalServiceType,
+      description: description.substring(0, 500), // Limit to 500 chars
+      metadata: {
+        caseId: caseItem._id,
+        urgency: caseItem.priority === 'high' ? 'high' : 'medium',
+        estimatedDeliveryDays: 1, // Work already completed
+        autoGenerated: true
+      },
+      lawyerNotes: `Auto-generated payment request for completed case: ${caseItem.caseNumber}${paymentAmount === 0 ? ' (No agreed pricing - amount set to 0)' : ''}`
+    });
+
+    await paymentRequest.save();
+
+    // Populate lawyer and client info for notifications
+    await paymentRequest.populate('lawyer client', 'name email role');
+
+    // Create notification for client
+    const paymentAmountDisplay = paymentAmount === 0 
+      ? 'Review and confirm payment amount' 
+      : `₹${paymentAmount.toLocaleString()}`;
+      
+    const notification = new Notification({
+      recipient: caseItem.client._id,
+      type: 'payment',
+      title: 'Work Completed - Payment Request',
+      message: `${paymentRequest.lawyer.name} has completed work on "${caseItem.title}" and ${paymentAmount === 0 ? 'submitted work for review. Please confirm payment amount.' : `requested payment of ${paymentAmountDisplay}`}`,
+      relatedCase: caseItem._id,
+      priority: 'high',
+      actionRequired: true,
+      actionUrl: `/dashboard/payments`,
+      metadata: {
+        paymentRequestId: paymentRequest._id,
+        requestId: paymentRequest.requestId,
+        amount: paymentRequest.amount,
+        totalAmount: paymentRequest.totalAmount,
+        serviceType: paymentRequest.serviceType,
+        lawyerName: paymentRequest.lawyer.name,
+        caseNumber: caseItem.caseNumber,
+        caseTitle: caseItem.title,
+        autoGenerated: true
+      }
+    });
+
+    await notification.save();
+
+    // Send real-time notification
+    if (notificationService && notificationService.sendToUser) {
+      notificationService.sendToUser(caseItem.client._id, {
+        type: 'payment_request',
+        title: 'Work Completed - Payment Request',
+        message: `${paymentRequest.lawyer.name} has completed work on your case "${caseItem.title}"`,
+        data: {
+          requestId: paymentRequest.requestId,
+          amount: paymentRequest.amount,
+          caseNumber: caseItem.caseNumber,
+          autoGenerated: true
+        }
+      });
+    }
+
+    // Send email notification (if configured)
+    try {
+      if (notificationService && notificationService.sendEmail) {
+        await notificationService.sendEmail({
+          to: paymentRequest.client.email,
+          subject: `Work Completed - Payment Request from ${paymentRequest.lawyer.name}`,
+          template: 'case-completion-payment-request',
+          data: {
+            clientName: paymentRequest.client.name,
+            lawyerName: paymentRequest.lawyer.name,
+            caseNumber: caseItem.caseNumber,
+            caseTitle: caseItem.title,
+            amount: paymentRequest.amount,
+            totalAmount: paymentRequest.totalAmount,
+            requestId: paymentRequest.requestId,
+            paymentUrl: `${process.env.FRONTEND_URL}/payments/request/${paymentRequest.requestId}`
+          }
+        });
+      }
+    } catch (emailError) {
+      console.error('Failed to send completion payment request email:', emailError);
+      // Don't fail the process if email fails
+    }
+
+    console.log(`✅ Auto payment request created for case ${caseItem.caseNumber}: ${paymentRequest.requestId}`);
+    return paymentRequest;
+
+  } catch (error) {
+    console.error('Error creating auto payment request:', error);
+    throw error;
+  }
+};
+
+// Resolve case with work proof and trigger payment
+exports.resolveCase = async (req, res) => {
+  try {
+    const caseId = req.params.id;
+    const { workProofDescription, resolvedAt } = req.body;
+    
+    // Find the case
+    const caseItem = await Case.findById(caseId);
+    if (!caseItem) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Case not found' 
+      });
+    }
+    
+    // Check if user is the assigned lawyer
+    if (!caseItem.lawyer || caseItem.lawyer.toString() !== req.user.id) {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only the assigned lawyer can resolve this case' 
+      });
+    }
+    
+    // Check if case is in a valid state to be resolved
+    if (caseItem.status === 'resolved' || caseItem.status === 'completed') {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Case is already resolved or completed' 
+      });
+    }
+    
+    // Check if there's a work proof document uploaded
+    if (!caseItem.workProof || !caseItem.workProof.documentId) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'Please upload work completion proof before resolving the case' 
+      });
+    }
+    
+    // Update case status to resolved (work proof is already stored in case from upload)
+    const updatedCase = await Case.findByIdAndUpdate(
+      caseId,
+      {
+        status: 'resolved',
+        resolvedAt: resolvedAt || new Date(),
+        progress: 100
+      },
+      { new: true, runValidators: true }
+    ).populate('client lawyer', 'name email role');
+    
+    // Create automatic payment request for all resolved cases
+    let paymentRequest = null;
+    try {
+      paymentRequest = await this.createAutoPaymentRequest(updatedCase);
+    } catch (paymentError) {
+      console.error('Error creating automatic payment request:', paymentError);
+      // Continue even if payment request creation fails
+    }
+    
+    // Create notification for client
+    const Notification = require('../models/Notification');
+    const notification = new Notification({
+      recipient: updatedCase.client._id,
+      type: 'system',
+      title: 'Case Work Completed',
+      message: `${updatedCase.lawyer.name} has completed work on case "${updatedCase.title}" and submitted proof of completion.${paymentRequest ? ' A payment request has been generated.' : ''}`,
+      relatedCase: updatedCase._id,
+      priority: 'high',
+      actionRequired: paymentRequest ? true : false,
+      actionUrl: paymentRequest ? `/dashboard/payments` : null
+    });
+    
+    await notification.save();
+    
+    res.json({
+      success: true,
+      message: paymentRequest 
+        ? 'Case resolved successfully and payment request generated'
+        : 'Case resolved successfully',
+      case: updatedCase,
+      paymentRequest: paymentRequest ? {
+        id: paymentRequest._id,
+        requestId: paymentRequest.requestId,
+        amount: paymentRequest.amount,
+        totalAmount: paymentRequest.totalAmount
+      } : null
+    });
+    
+  } catch (error) {
+    console.error('Error resolving case:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to resolve case',
+      error: error.message
+    });
+  }
+};
+
+// Upload work completion proof
+exports.uploadWorkProof = async (req, res) => {
+  try {
+    const caseId = req.params.id;
+    const { description } = req.body;
+    
+    // Find the case
+    const caseItem = await Case.findById(caseId);
+    if (!caseItem) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'Case not found' 
+      });
+    }
+    
+    // Check if user is the assigned lawyer
+    if (!caseItem.lawyer || caseItem.lawyer.toString() !== req.user.id) {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Only the assigned lawyer can upload work proof' 
+      });
+    }
+    
+    // Check if file was uploaded
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false,
+        message: 'No file uploaded' 
+      });
+    }
+    
+    // Create document record with file buffer (memory storage)
+    const Document = require('../models/Document');
+    
+    // Generate unique filename to avoid duplicates
+    const timestamp = Date.now();
+    const randomString = Math.random().toString(36).substring(2, 8);
+    const fileExtension = req.file.originalname.split('.').pop();
+    const uniqueFileName = `${caseItem.caseNumber}_work_proof_${timestamp}_${randomString}.${fileExtension}`;
+    
+    const document = new Document({
+      fileName: uniqueFileName, // Use unique filename to avoid duplicates
+      originalName: req.file.originalname,
+      mimeType: req.file.mimetype,
+      fileSize: req.file.size,
+      fileData: req.file.buffer, // Use buffer from memory storage
+      documentType: 'work_proof',
+      uploadedBy: req.user.id,
+      relatedCase: caseId,
+      status: 'approved', // Work proof is automatically approved
+      tags: ['work_proof', 'case_completion']
+    });
+    
+    try {
+      await document.save();
+    } catch (saveError) {
+      // Handle duplicate key error by generating a new unique filename
+      if (saveError.code === 11000 && saveError.keyPattern && saveError.keyPattern.fileName) {
+        console.log('Duplicate filename detected, generating new unique filename...');
+        const newTimestamp = Date.now();
+        const newRandomString = Math.random().toString(36).substring(2, 12);
+        const newFileExtension = req.file.originalname.split('.').pop();
+        document.fileName = `${caseItem.caseNumber}_work_proof_${newTimestamp}_${newRandomString}.${newFileExtension}`;
+        await document.save();
+      } else {
+        throw saveError;
+      }
+    }
+    
+    // Update case with work proof reference
+    caseItem.workProof = {
+      documentId: document._id,
+      uploadedAt: new Date(),
+      description: description || 'Work completion proof'
+    };
+    
+    // Add document to case documents array if not already present
+    if (!caseItem.documents.includes(document._id)) {
+      caseItem.documents.push(document._id);
+    }
+    
+    await caseItem.save();
+    
+    res.json({
+      success: true,
+      message: 'Work proof uploaded successfully',
+      document: {
+        id: document._id,
+        name: document.originalName,
+        uploadedAt: document.createdAt,
+        description: description || 'Work completion proof'
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error uploading work proof:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload work proof',
+      error: error.message
+    });
   }
 }; 

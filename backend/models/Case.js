@@ -60,7 +60,7 @@ const caseSchema = new mongoose.Schema(
     // Status and Priority
     status: {
       type: String,
-      enum: ["open", "in_progress", "closed", "active", "pending"], // Added active and pending
+      enum: ["open", "in_progress", "closed", "active", "pending", "resolved", "completed"], // Added resolved and completed status
       default: "open",
     },
     priority: { 
@@ -80,7 +80,18 @@ const caseSchema = new mongoose.Schema(
     // Important Dates
     dateOpened: { type: Date, default: Date.now },
     dateClosed: { type: Date },
+    resolvedAt: { type: Date },
     nextHearingDate: { type: Date },
+    
+    // Work completion proof
+    workProof: {
+      documentId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Document'
+      },
+      uploadedAt: Date,
+      description: String
+    },
     
     // Document References
     documents: [{

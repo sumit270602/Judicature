@@ -5,10 +5,8 @@ const chromaService = require('../utils/chroma');
 const recommendLawyersForCase = async (req, res) => {
     try {
         const { caseType, caseDescription } = req.body;
-        console.log('Received lawyer recommendation request:', { caseType, caseDescription });
         
         if (!caseType) {
-            console.log('No case type provided');
             return res.status(400).json({ error: 'Case type is required' });
         }
 
@@ -20,8 +18,6 @@ const recommendLawyersForCase = async (req, res) => {
         
         // If ChromaDB returns no results, fall back to simple database query
         if (recommendations.length === 0) {
-            console.log('ChromaDB returned no results, falling back to database query');
-            
             // Simple fallback: find verified lawyers who have related practice areas
             const practiceAreaMap = {
                 'civil': ['civil', 'property', 'other'],
@@ -43,8 +39,6 @@ const recommendLawyersForCase = async (req, res) => {
             }).select('-password').limit(10);
             
             if (fallbackLawyers.length === 0) {
-                console.log('No verified lawyers found, trying to find any lawyers...');
-                
                 // Try to find any lawyers (even unverified) as a last resort
                 const anyLawyers = await User.find({
                     role: 'lawyer',
@@ -193,9 +187,7 @@ const updateLawyerVector = async (lawyerId, lawyerData) => {
             casesWon: lawyerData.casesWon || 0
         });
         
-        if (success) {
-            console.log(`Updated vector for lawyer ${lawyerId}`);
-        } else {
+        if (!success) {
             console.warn(`Failed to update vector for lawyer ${lawyerId}`);
         }
         
@@ -231,8 +223,6 @@ const recommendLawyersForService = async (req, res) => {
             .limit(20);
 
         if (services.length === 0) {
-            console.log('No services found, falling back to general lawyer search');
-            
             // Fallback: find verified lawyers with related practice areas
             const categoryToPracticeArea = {
                 'personal_family': ['family', 'other'],

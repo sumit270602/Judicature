@@ -11,15 +11,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Calendar, FileText, User, DollarSign, Bell, Briefcase, Download, Upload, Shield, Settings, AlertCircle, Bot, Send, Sparkles, FileUp, ArrowRight, Zap } from 'lucide-react';
+import { Calendar, FileText, User, DollarSign, Bell, Briefcase, Download, Upload, Shield, Settings, AlertCircle, Bot, Send, Sparkles, FileUp, ArrowRight, Zap, CreditCard, Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useClientDashboard, useRealTimeUpdates, type Case } from '@/hooks/useDashboard';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { downloadDocument } from '@/api';
+import { downloadDocument, getClientPayments, api } from '@/api';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import MessagingTrigger from '@/components/MessagingTrigger';
+import PaymentForm from '@/components/PaymentForm';
+import PaymentRequests from '@/components/PaymentRequests';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // Client dashboard stats
 interface ClientDashboardStats {
@@ -930,61 +934,257 @@ const ClientCalendar = () => (
   </Card>
 );
 
-// Billing & Payments component
-const BillingPayments = () => (
-  <Card className="mb-6">
-    <CardHeader>
-      <CardTitle className="flex items-center gap-2">
-        <DollarSign className="h-5 w-5" />
-        Billing & Payments
-      </CardTitle>
-      <CardDescription>Invoices and payment history</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <div className="space-y-4">
-        <div className="flex justify-between items-center p-4 bg-gradient-to-r from-green-50 to-green-100 rounded-lg border border-green-200">
-          <div>
-            <p className="text-sm font-medium text-green-800">Account Status</p>
-            <p className="text-xs text-green-600">All payments up to date</p>
+// Enhanced Billing & Payments with Stripe Escrow
+const BillingPayments = () => {
+  const [orders, setOrders] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [selectedLawyer, setSelectedLawyer] = useState<string>('');
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const fetchOrders = async () => {
+    try {
+      setIsLoading(true);
+      const { data } = await api.get('/orders');
+      setOrders(data.orders || []);
+    } catch (error: any) {
+      console.error('Error fetching orders:', error);
+      // Don't show error for empty orders - normal for new users
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const formatCurrency = (amount: number, currency: string = 'INR') => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: currency.toUpperCase(),
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount / 100);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'text-green-600 bg-green-50 border-green-200';
+      case 'paid':
+      case 'in_progress':
+        return 'text-blue-600 bg-blue-50 border-blue-200';
+      case 'pending':
+        return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+      case 'disputed':
+        return 'text-red-600 bg-red-50 border-red-200';
+      default:
+        return 'text-gray-600 bg-gray-50 border-gray-200';
+    }
+  };
+
+  const handlePaymentSuccess = (orderId: string) => {
+    setShowPaymentForm(false);
+    fetchOrders(); // Refresh orders
+    toast({
+      title: "Payment Successful",
+      description: "Your payment has been processed and funds are held in escrow.",
+    });
+  };
+
+  const calculateTotalEscrow = () => {
+    return orders
+      .filter(order => order.escrowStatus === 'held')
+      .reduce((total, order) => total + order.totalAmount, 0);
+  };
+
+  if (isLoading) {
+    return (
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Escrow Payments
+          </CardTitle>
+          <CardDescription>Loading payment information...</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="animate-pulse space-y-4">
+            <div className="h-16 bg-gray-200 rounded-lg"></div>
+            <div className="space-y-2">
+              <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+              <div className="h-12 bg-gray-200 rounded"></div>
+            </div>
           </div>
-          <div className="text-right">
-            <p className="text-lg font-bold text-green-700">$0</p>
-            <p className="text-xs text-green-600">Outstanding</p>
-          </div>
-        </div>
-        
-        <div>
-          <h4 className="text-sm font-medium mb-3">Recent Invoices</h4>
-          <div className="space-y-2">
-            {[
-              { invoice: 'INV-2024-001', amount: '$2,500', date: 'Dec 15, 2024', status: 'Paid' },
-              { invoice: 'INV-2024-002', amount: '$1,800', date: 'Nov 30, 2024', status: 'Paid' },
-              { invoice: 'INV-2024-003', amount: '$3,200', date: 'Nov 15, 2024', status: 'Paid' },
-            ].map((invoice, index) => (
-              <div key={index} className="flex justify-between items-center p-3 border rounded-lg">
-                <div>
-                  <p className="text-sm font-medium">{invoice.invoice}</p>
-                  <p className="text-xs text-muted-foreground">{invoice.date}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const totalEscrow = calculateTotalEscrow();
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5 text-legal-navy" />
+            Payments & Requests
+          </CardTitle>
+          <CardDescription>Manage payment requests and secure escrow payments</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="requests" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="requests">Payment Requests</TabsTrigger>
+              <TabsTrigger value="escrow">Escrow & Orders</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="requests" className="space-y-4">
+              <PaymentRequests userRole="client" />
+            </TabsContent>
+            
+            <TabsContent value="escrow" className="space-y-4">
+          <div className="space-y-4">
+            {/* Escrow Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center p-4 border rounded-lg bg-blue-50">
+                <div className="text-2xl font-bold text-blue-600">
+                  {orders.filter(o => o.escrowStatus === 'held').length}
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium">{invoice.amount}</p>
-                  <Badge variant="outline" className="text-xs">
-                    {invoice.status}
-                  </Badge>
-                </div>
+                <div className="text-sm text-blue-700">Funds in Escrow</div>
               </div>
-            ))}
+              <div className="text-center p-4 border rounded-lg bg-green-50">
+                <div className="text-2xl font-bold text-green-600">
+                  {orders.filter(o => o.status === 'completed').length}
+                </div>
+                <div className="text-sm text-green-700">Completed Orders</div>
+              </div>
+              <div className="text-center p-4 border rounded-lg bg-legal-gold/10">
+                <div className="text-2xl font-bold text-legal-navy">
+                  {formatCurrency(totalEscrow)}
+                </div>
+                <div className="text-sm text-legal-navy">Total in Escrow</div>
+              </div>
+            </div>
+
+            {/* Recent Orders */}
+            <div>
+              <div className="flex justify-between items-center mb-3">
+                <h4 className="text-sm font-medium">Recent Orders</h4>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowPaymentForm(true)}
+                >
+                  <CreditCard className="h-4 w-4 mr-1" />
+                  New Payment
+                </Button>
+              </div>
+              
+              <div className="space-y-2">
+                {orders.length > 0 ? (
+                  orders.slice(0, 3).map((order) => (
+                    <div key={order._id} className="flex justify-between items-center p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="text-sm font-medium">{order.orderId}</p>
+                          <Badge variant="outline" className={`text-xs ${getStatusColor(order.status)}`}>
+                            {order.status.replace('_', ' ')}
+                          </Badge>
+                          {order.escrowStatus === 'held' && (
+                            <Badge variant="outline" className="text-blue-600 border-blue-600">
+                              <Shield className="h-3 w-3 mr-1" />
+                              Escrow
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          Lawyer: {order.lawyer?.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(order.createdAt).toLocaleDateString('en-IN', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium">
+                          {formatCurrency(order.totalAmount, order.currency)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {order.serviceType.replace('_', ' ')}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <Shield className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No payment orders yet</p>
+                    <p className="text-xs">Create your first secure escrow payment</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Payment Form Dialog */}
+            <Dialog open={showPaymentForm} onOpenChange={setShowPaymentForm}>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Create Secure Payment</DialogTitle>
+                  <DialogDescription>
+                    Pay securely with escrow protection. Funds are held safely until work completion.
+                  </DialogDescription>
+                </DialogHeader>
+                {/* You'd need to implement lawyer selection here */}
+                <div className="space-y-4">
+                  <div>
+                    <Label>Select Lawyer</Label>
+                    <Select value={selectedLawyer} onValueChange={setSelectedLawyer}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose a lawyer..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="lawyer1">John Smith - Corporate Law</SelectItem>
+                        <SelectItem value="lawyer2">Sarah Johnson - Family Law</SelectItem>
+                        <SelectItem value="lawyer3">Michael Brown - Criminal Law</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {selectedLawyer && (
+                    <PaymentForm
+                      lawyerId={selectedLawyer}
+                      onSuccess={handlePaymentSuccess}
+                      onCancel={() => setShowPaymentForm(false)}
+                    />
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+            
+            {/* View All Button */}
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={() => navigate('/orders')}
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              View All Orders & Payments
+            </Button>
           </div>
-        </div>
-        
-        <Button variant="outline" className="w-full">
-          <DollarSign className="mr-2 h-4 w-4" />
-          View Payment History
-        </Button>
-      </div>
-    </CardContent>
-  </Card>
-);
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
 
 // Notifications component
 const NotificationsDrawer = () => (

@@ -20,4 +20,16 @@ router.use('/rate-cards', require('./rateCards'));
 router.use('/work-items', require('./workItems'));
 router.use('/enhanced-billing', require('./enhancedBilling'));
 
+// Stripe Connect Escrow System Routes
+router.use('/stripe-connect', require('./stripeConnect'));
+router.use('/orders', require('./orders'));
+router.use('/deliverables', require('./deliverables'));
+router.use('/webhook', require('./webhook'));
+
+// Payment Request System Routes
+router.use('/payment-requests', require('./paymentRequests'));
+
+// Health check route
+router.use('/health', require('./health'));
+
 module.exports = router; 

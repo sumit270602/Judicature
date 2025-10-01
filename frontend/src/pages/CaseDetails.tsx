@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getCaseById, getCaseDocuments, downloadDocument, uploadCaseDocument, updateCase } from '@/api';
+import { useAuth } from '@/hooks/use-auth';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import LinkedInMessaging from '@/components/LinkedInMessaging';
@@ -89,12 +90,18 @@ interface CaseData {
   updatedAt: string;
   nextHearing?: string;
   documents: string[];
+  agreedPricing?: {
+    amount: number;
+    currency: string;
+    type: string;
+  };
 }
 
 const CaseDetails: React.FC = () => {
   const { caseId } = useParams<{ caseId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const [caseData, setCaseData] = useState<CaseData | null>(null);
   const [documents, setDocuments] = useState<CaseDocument[]>([]);
@@ -279,6 +286,30 @@ const CaseDetails: React.FC = () => {
     }
   };
 
+  // Handle case completion (for lawyers)
+  const handleCompleteCase = async () => {
+    if (!caseId || !user || user.role !== 'lawyer') return;
+
+    try {
+      const response = await updateCase(caseId, { status: 'completed' });
+      
+      if (response.data.success) {
+        setCaseData(response.data.case);
+        toast({
+          title: "Case Completed",
+          description: response.data.message || "Case marked as completed successfully. Payment request has been generated automatically.",
+        });
+      }
+    } catch (error: any) {
+      console.error('Complete case error:', error);
+      toast({
+        title: "Completion Failed",
+        description: error.response?.data?.message || "Failed to complete case",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Handle share case
   const handleShareCase = () => {
     if (!caseData) return;
@@ -332,15 +363,95 @@ const CaseDetails: React.FC = () => {
     });
   };
 
+  // Find Lawyer Modal State
+  const [showFindLawyerDialog, setShowFindLawyerDialog] = useState(false);
+  const [lawyers, setLawyers] = useState<any[]>([]);
+  const [isLoadingLawyers, setIsLoadingLawyers] = useState(false);
+  const [selectedLawyerId, setSelectedLawyerId] = useState<string>('');
+
   // Handle find lawyer
-  const handleFindLawyer = () => {
-    // Navigate to lawyer recommendation or assignment page
-    toast({
-      title: "Find Lawyer",
-      description: "Redirecting to lawyer recommendations...",
-    });
-    // In a real app, this might navigate to a lawyer selection page
-    // navigate(`/find-lawyer/${caseId}`);
+  const handleFindLawyer = async () => {
+    setShowFindLawyerDialog(true);
+    setIsLoadingLawyers(true);
+    
+    try {
+      // Debug: Log the case data being sent
+      console.log('Case data for API call:', {
+        caseType: caseData?.caseType,
+        caseDescription: caseData?.description,
+        fullCaseData: caseData
+      });
+      
+      // Get lawyer recommendations for this case
+      const response = await fetch('/api/recommendations/lawyers-for-case', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          caseType: caseData?.caseType,
+          caseDescription: caseData?.description
+        })
+      });
+      
+      console.log('API Response status:', response.status);
+      console.log('API Response headers:', response.headers);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('API Response data:', data);
+        setLawyers(data.lawyers || []);
+      } else {
+        const errorText = await response.text();
+        console.error('API Error:', response.status, errorText);
+        throw new Error(`Failed to fetch lawyers: ${response.status} - ${errorText}`);
+      }
+    } catch (error) {
+      console.error('Error fetching lawyers:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load lawyer recommendations. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingLawyers(false);
+    }
+  };
+
+  // Assign lawyer to case
+  const handleAssignLawyer = async () => {
+    if (!selectedLawyerId || !caseId) return;
+    
+    try {
+      const response = await fetch(`/api/cases/${caseId}/assign-lawyer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ lawyerId: selectedLawyerId })
+      });
+      
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Lawyer assigned successfully!",
+        });
+        setShowFindLawyerDialog(false);
+        // Refresh case data
+        window.location.reload();
+      } else {
+        throw new Error('Failed to assign lawyer');
+      }
+    } catch (error) {
+      console.error('Error assigning lawyer:', error);
+      toast({
+        title: "Error",
+        description: "Failed to assign lawyer. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Get priority color
@@ -359,6 +470,7 @@ const CaseDetails: React.FC = () => {
       case 'active': return 'bg-green-100 text-green-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'closed': return 'bg-gray-100 text-gray-800';
+      case 'completed': return 'bg-emerald-100 text-emerald-800';
       case 'on hold': return 'bg-orange-100 text-orange-800';
       default: return 'bg-blue-100 text-blue-800';
     }
@@ -477,6 +589,21 @@ const CaseDetails: React.FC = () => {
                     <h4 className="font-medium text-sm text-muted-foreground mb-2">Description</h4>
                     <p className="text-sm leading-relaxed">{caseData.description}</p>
                   </div>
+                  
+                  {/* Agreed Pricing Information */}
+                  {caseData.agreedPricing && (
+                    <div>
+                      <h4 className="font-medium text-sm text-muted-foreground mb-2">Agreed Pricing</h4>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-green-700 border-green-300">
+                          {caseData.agreedPricing.currency} {caseData.agreedPricing.amount}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground capitalize">
+                          ({caseData.agreedPricing.type})
+                        </span>
+                      </div>
+                    </div>
+                  )}
                   
                   <Separator />
                   
@@ -731,13 +858,152 @@ const CaseDetails: React.FC = () => {
                         No lawyer has been assigned to this case yet. You can request lawyer recommendations or wait for automatic assignment.
                       </AlertDescription>
                     </Alert>
-                    <Button 
-                      className="w-full mt-4 bg-legal-gold hover:bg-legal-gold/90 text-legal-navy"
-                      onClick={handleFindLawyer}
-                    >
-                      <User className="h-4 w-4 mr-2" />
-                      Find Lawyer
-                    </Button>
+                    <Dialog open={showFindLawyerDialog} onOpenChange={setShowFindLawyerDialog}>
+                      <DialogTrigger asChild>
+                        <Button 
+                          className="w-full mt-4 bg-legal-gold hover:bg-legal-gold/90 text-legal-navy"
+                          onClick={handleFindLawyer}
+                        >
+                          <User className="h-4 w-4 mr-2" />
+                          Find Lawyer
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden">
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2">
+                            <User className="h-5 w-5" />
+                            Find & Assign Lawyer
+                          </DialogTitle>
+                          <DialogDescription>
+                            Select a lawyer from our recommended professionals for this case.
+                          </DialogDescription>
+                        </DialogHeader>
+                        
+                        <div className="flex-1 overflow-hidden">
+                          {isLoadingLawyers ? (
+                            <div className="flex items-center justify-center py-12">
+                              <div className="text-center">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-legal-navy mx-auto mb-3"></div>
+                                <span className="text-legal-navy font-medium">Finding the best lawyers for your case...</span>
+                                <p className="text-sm text-muted-foreground mt-1">Analyzing profiles and expertise</p>
+                              </div>
+                            </div>
+                          ) : lawyers.length > 0 ? (
+                            <ScrollArea className="h-96 pr-4">
+                              <div className="space-y-4">
+                                {lawyers.map((rec) => (
+                                  <div 
+                                    key={rec.lawyer._id}
+                                    className={`group relative border-2 rounded-xl cursor-pointer transition-all duration-200 hover:shadow-lg ${
+                                      selectedLawyerId === rec.lawyer._id 
+                                        ? 'border-legal-navy bg-gradient-to-br from-legal-navy/5 to-legal-navy/10 shadow-md' 
+                                        : 'border-gray-200 hover:border-legal-navy/30 bg-white'
+                                    }`}
+                                    onClick={() => setSelectedLawyerId(rec.lawyer._id)}
+                                  >
+                                    {/* Selection Indicator */}
+                                    {selectedLawyerId === rec.lawyer._id && (
+                                      <div className="absolute -top-2 -right-2 z-10">
+                                        <div className="bg-legal-navy text-white rounded-full p-1">
+                                          <CheckCircle className="h-4 w-4" />
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    <div className="p-4">
+                                      {/* Header Section */}
+                                      <div className="flex items-start gap-4 mb-3">
+                                        <Avatar className="h-12 w-12 ring-2 ring-gray-100 group-hover:ring-legal-navy/20 transition-all">
+                                          <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${rec.lawyer.name}`} />
+                                          <AvatarFallback className="text-sm font-semibold bg-gradient-to-br from-legal-navy to-legal-navy/80 text-white">
+                                            {rec.lawyer.name.split(' ').map((n: string) => n[0]).join('')}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                        
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-3 mb-2">
+                                            <h3 className="text-base font-bold text-gray-900 truncate">
+                                              {rec.lawyer.name}
+                                            </h3>
+                                            {rec.lawyer.verificationStatus === 'verified' && (
+                                              <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 text-xs">
+                                                <CheckCircle className="h-3 w-3 mr-1" />
+                                                Verified
+                                              </Badge>
+                                            )}
+                                          </div>
+                                          
+                                          {/* Statistics Row */}
+                                          <div className="flex items-center gap-4 text-sm">
+                                            <div className="flex items-center gap-1">
+                                              <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                                              <span className="font-semibold">{rec.rating.toFixed(1)}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1 text-green-600">
+                                              <Award className="h-3 w-3" />
+                                              <span className="font-semibold">{rec.casesWon}</span>
+                                              <span>wins</span>
+                                            </div>
+                                            <div className="flex items-center gap-1 text-blue-600">
+                                              <Clock className="h-3 w-3" />
+                                              <span className="font-semibold">{rec.experience}</span>
+                                              <span>y exp</span>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        {/* Match Score */}
+                                        <div className="text-center">
+                                          <div className="bg-legal-navy text-white rounded-full px-2 py-1 text-xs font-bold">
+                                            {Math.round(rec.similarity * 100)}%
+                                          </div>
+                                          <div className="text-xs text-muted-foreground mt-1">match</div>
+                                        </div>
+                                      </div>
+
+                                      {/* Specializations */}
+                                      <div className="border-t pt-3">
+                                        <div className="flex flex-wrap gap-1">
+                                          {rec.specializations.slice(0, 3).map((spec: string, idx: number) => (
+                                            <Badge key={idx} variant="outline" className="text-xs px-2 py-1 bg-legal-navy/5 border-legal-navy/20">
+                                              {spec}
+                                            </Badge>
+                                          ))}
+                                          {rec.specializations.length > 3 && (
+                                            <Badge variant="outline" className="text-xs px-2 py-1 bg-gray-100 border-gray-300">
+                                              +{rec.specializations.length - 3}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </ScrollArea>
+                          ) : (
+                            <div className="text-center py-12 text-muted-foreground">
+                              <User className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                              <p className="text-sm">No lawyer recommendations available.</p>
+                              <p className="text-xs">Please try again later or contact support.</p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setShowFindLawyerDialog(false)}>
+                            Cancel
+                          </Button>
+                          <Button 
+                            className="bg-legal-navy hover:bg-legal-navy/90"
+                            onClick={handleAssignLawyer}
+                            disabled={!selectedLawyerId || isLoadingLawyers}
+                          >
+                            Assign Selected Lawyer
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                   </CardContent>
                 </Card>
               )}
@@ -811,6 +1077,24 @@ const CaseDetails: React.FC = () => {
                       />
                     </DialogContent>
                   </Dialog>
+
+                  {/* Case Completion Button - Only for lawyers */}
+                  {user?.role === 'lawyer' && caseData.status !== 'completed' && caseData.status !== 'closed' && (
+                    <div className="space-y-2">
+                      <Button 
+                        className="w-full justify-start bg-green-600 hover:bg-green-700 text-white"
+                        onClick={handleCompleteCase}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Mark Case Complete
+                      </Button>
+                      {caseData.agreedPricing && (
+                        <p className="text-xs text-muted-foreground px-2">
+                          💰 Auto payment request will be created for {caseData.agreedPricing.currency} {caseData.agreedPricing.amount}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

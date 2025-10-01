@@ -24,7 +24,9 @@ import {
   Brain,
   Upload,
   File,
-  X
+  X,
+  Phone,
+  Mail
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -454,9 +456,9 @@ const CreateCase: React.FC = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Case Form */}
-            <div className="lg:col-span-2 space-y-6">
+            <div className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Case Information</CardTitle>
@@ -748,115 +750,216 @@ const CreateCase: React.FC = () => {
                   {((formData.caseType) || (formData.useServiceBased && (formData.serviceCategory || formData.serviceType))) && formData.description.length > 20 ? (
                     <>
                       {isLoadingRecommendations ? (
-                        <div className="flex items-center justify-center py-8">
-                          <Loader2 className="h-6 w-6 animate-spin text-legal-navy" />
-                          <span className="ml-2">Finding best lawyers...</span>
+                        <div className="flex items-center justify-center py-12">
+                          <div className="text-center">
+                            <Loader2 className="h-8 w-8 animate-spin text-legal-navy mx-auto mb-3" />
+                            <span className="text-legal-navy font-medium">Finding the best lawyers for you...</span>
+                            <p className="text-sm text-muted-foreground mt-1">Analyzing profiles and expertise</p>
+                          </div>
                         </div>
                       ) : recommendations.length > 0 ? (
                         <ScrollArea className="h-96">
-                          <div className="space-y-4">
+                          <div className="space-y-6">
                             {recommendations.map((rec) => (
                               <div 
                                 key={rec.lawyer._id}
-                                className={`p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
+                                className={`group relative border-2 rounded-xl cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] ${
                                   selectedLawyer === rec.lawyer._id 
-                                    ? 'border-legal-navy bg-legal-navy/5' 
-                                    : 'border-gray-200'
+                                    ? 'border-legal-navy bg-gradient-to-br from-legal-navy/5 to-legal-navy/10 shadow-md' 
+                                    : 'border-gray-200 hover:border-legal-navy/30 bg-white'
                                 }`}
                                 onClick={() => handleLawyerSelect(rec.lawyer._id)}
                               >
-                                <div className="flex items-start gap-3">
-                                  <Avatar className="h-10 w-10">
-                                    <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${rec.lawyer.name}`} />
-                                    <AvatarFallback>
-                                      {rec.lawyer.name.split(' ').map(n => n[0]).join('')}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <h4 className="font-medium text-sm truncate">
-                                        {rec.lawyer.name}
-                                      </h4>
-                                      {rec.lawyer.verificationStatus === 'verified' && (
-                                        <Badge variant="secondary" className="text-xs">
-                                          <CheckCircle className="h-3 w-3 mr-1" />
-                                          Verified
-                                        </Badge>
-                                      )}
+                                {/* Selection Indicator */}
+                                {selectedLawyer === rec.lawyer._id && (
+                                  <div className="absolute -top-2 -right-2 z-10">
+                                    <div className="bg-legal-navy text-white rounded-full p-1">
+                                      <CheckCircle className="h-4 w-4" />
                                     </div>
+                                  </div>
+                                )}
+
+                                <div className="p-6">
+                                  {/* Header Section */}
+                                  <div className="flex items-start gap-4 mb-4">
+                                    <Avatar className="h-16 w-16 ring-2 ring-gray-100 group-hover:ring-legal-navy/20 transition-all">
+                                      <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${rec.lawyer.name}`} />
+                                      <AvatarFallback className="text-lg font-semibold bg-gradient-to-br from-legal-navy to-legal-navy/80 text-white">
+                                        {rec.lawyer.name.split(' ').map(n => n[0]).join('')}
+                                      </AvatarFallback>
+                                    </Avatar>
                                     
-                                    <div className="space-y-2">
-                                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                                        <div className="flex items-center gap-1">
-                                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                                          {rec.rating.toFixed(1)}
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                          <Award className="h-3 w-3" />
-                                          {rec.casesWon} wins
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                          <Clock className="h-3 w-3" />
-                                          {rec.experience}y exp
-                                        </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-3 mb-2">
+                                        <h3 className="text-lg font-bold text-gray-900 truncate">
+                                          {rec.lawyer.name}
+                                        </h3>
+                                        {rec.lawyer.verificationStatus === 'verified' && (
+                                          <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100">
+                                            <CheckCircle className="h-3 w-3 mr-1" />
+                                            Verified
+                                          </Badge>
+                                        )}
                                       </div>
                                       
-                                      {/* Show services if service-based recommendations */}
-                                      {rec.services && rec.services.length > 0 ? (
-                                        <div className="space-y-2">
-                                          <div className="text-xs font-medium text-legal-navy">
-                                            Available Services:
-                                          </div>
-                                          {rec.services.slice(0, 2).map((service: any, idx: number) => (
-                                            <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
-                                              <div className="font-medium">{service.title}</div>
-                                              <div className="text-muted-foreground text-xs mt-1">
+                                      {/* Statistics Row */}
+                                      <div className="flex items-center gap-6 text-sm">
+                                        <div className="flex items-center gap-1">
+                                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                                          <span className="font-semibold">{rec.rating.toFixed(1)}</span>
+                                          <span className="text-muted-foreground">rating</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 text-green-600">
+                                          <Award className="h-4 w-4" />
+                                          <span className="font-semibold">{rec.casesWon}</span>
+                                          <span>wins</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 text-blue-600">
+                                          <Clock className="h-4 w-4" />
+                                          <span className="font-semibold">{rec.experience}</span>
+                                          <span>years exp</span>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Match Score */}
+                                    <div className="text-center">
+                                      <div className="bg-legal-navy text-white rounded-full px-3 py-1 text-sm font-bold">
+                                        {Math.round(rec.similarity * 100)}%
+                                      </div>
+                                      <div className="text-xs text-muted-foreground mt-1">match</div>
+                                    </div>
+                                  </div>
+
+                                  {/* Services/Pricing Section */}
+                                  {rec.services && rec.services.length > 0 ? (
+                                    <div className="border-t pt-4">
+                                      <div className="flex items-center gap-2 mb-3">
+                                        <div className="h-2 w-2 bg-legal-navy rounded-full"></div>
+                                        <span className="text-sm font-semibold text-legal-navy">Available Services & Rates</span>
+                                      </div>
+                                      
+                                      <div className="grid gap-3">
+                                        {rec.services.slice(0, 2).map((service: any, idx: number) => (
+                                          <div key={idx} className="bg-gradient-to-r from-gray-50 to-gray-100/50 p-4 rounded-lg border border-gray-200">
+                                            <div className="flex justify-between items-start gap-3">
+                                              <div className="flex-1">
+                                                <h4 className="font-semibold text-gray-900 mb-1">{service.title}</h4>
+                                                {service.estimatedDuration && (
+                                                  <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                                    <Clock className="h-3 w-3" />
+                                                    {service.estimatedDuration}
+                                                  </p>
+                                                )}
+                                              </div>
+                                              
+                                              <div className="text-right">
                                                 {service.pricing.type === 'fixed' && (
-                                                  <span className="text-green-600 font-medium">
-                                                    ₹{service.pricing.amount?.toLocaleString()} fixed
-                                                  </span>
+                                                  <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full">
+                                                    <span className="text-lg font-bold">₹{service.pricing.amount?.toLocaleString()}</span>
+                                                    <span className="text-sm ml-1">fixed</span>
+                                                  </div>
                                                 )}
                                                 {service.pricing.type === 'hourly' && (
-                                                  <span className="text-blue-600 font-medium">
-                                                    ₹{service.pricing.hourlyRate?.toLocaleString()}/hour
-                                                  </span>
+                                                  <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
+                                                    <span className="text-lg font-bold">₹{service.pricing.hourlyRate?.toLocaleString()}</span>
+                                                    <span className="text-sm ml-1">/hour</span>
+                                                  </div>
                                                 )}
                                                 {service.pricing.type === 'range' && (
-                                                  <span className="text-purple-600 font-medium">
-                                                    ₹{service.pricing.minAmount?.toLocaleString()} - ₹{service.pricing.maxAmount?.toLocaleString()}
-                                                  </span>
-                                                )}
-                                                {service.estimatedDuration && (
-                                                  <span className="ml-2 text-gray-500">
-                                                    • {service.estimatedDuration}
-                                                  </span>
+                                                  <div className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-center">
+                                                    <div className="text-sm font-bold">
+                                                      ₹{service.pricing.minAmount?.toLocaleString()} - ₹{service.pricing.maxAmount?.toLocaleString()}
+                                                    </div>
+                                                    <div className="text-xs">range</div>
+                                                  </div>
                                                 )}
                                               </div>
                                             </div>
-                                          ))}
-                                          {rec.services.length > 2 && (
-                                            <div className="text-xs text-muted-foreground">
-                                              +{rec.services.length - 2} more services
-                                            </div>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <div className="flex flex-wrap gap-1">
-                                          {rec.specializations.slice(0, 2).map((spec, idx) => (
-                                            <Badge key={idx} variant="outline" className="text-xs">
-                                              {spec}
-                                            </Badge>
-                                          ))}
-                                        </div>
-                                      )}
-                                      
-                                      <div className="text-xs text-legal-navy font-medium">
-                                        {Math.round(rec.similarity * 100)}% match
+                                          </div>
+                                        ))}
+                                        
+                                        {rec.services.length > 2 && (
+                                          <div className="text-center text-sm text-muted-foreground bg-gray-50 py-2 rounded-lg border border-dashed border-gray-300">
+                                            <span className="font-medium">+{rec.services.length - 2} more services available</span>
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
-                                  </div>
+                                  ) : (
+                                    <div className="border-t pt-4">
+                                      {/* Specializations with Enhanced Display */}
+                                      <div className="flex items-center gap-2 mb-3">
+                                        <div className="h-2 w-2 bg-legal-navy rounded-full"></div>
+                                        <span className="text-sm font-semibold text-legal-navy">Legal Expertise</span>
+                                      </div>
+                                      <div className="grid gap-3 mb-4">
+                                        <div className="bg-gradient-to-r from-blue-50 to-blue-100/50 p-4 rounded-lg border border-blue-200">
+                                          <div className="flex justify-between items-start gap-3">
+                                            <div className="flex-1">
+                                              <h4 className="font-semibold text-gray-900 mb-2">General Legal Consultation</h4>
+                                              <div className="flex flex-wrap gap-2 mb-2">
+                                                {rec.specializations.slice(0, 4).map((spec, idx) => (
+                                                  <Badge key={idx} variant="outline" className="text-xs px-2 py-1 bg-white/70 border-blue-300 text-blue-800">
+                                                    {spec}
+                                                  </Badge>
+                                                ))}
+                                                {rec.specializations.length > 4 && (
+                                                  <Badge variant="outline" className="text-xs px-2 py-1 bg-white/70 border-blue-300 text-blue-800">
+                                                    +{rec.specializations.length - 4} more areas
+                                                  </Badge>
+                                                )}
+                                              </div>
+                                              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                                <Clock className="h-3 w-3" />
+                                                Initial consultation: 30-60 minutes
+                                              </p>
+                                            </div>
+                                            
+                                            <div className="text-right">
+                                              <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
+                                                <span className="text-lg font-bold">₹{(2000 + rec.experience * 100).toLocaleString()}</span>
+                                                <span className="text-sm ml-1">/hour</span>
+                                              </div>
+                                              <div className="text-xs text-muted-foreground mt-1">Base rate</div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Additional service estimation */}
+                                        <div className="bg-gradient-to-r from-green-50 to-green-100/50 p-3 rounded-lg border border-green-200">
+                                          <div className="flex justify-between items-center">
+                                            <div className="flex-1">
+                                              <h5 className="font-medium text-gray-900 text-sm">Case Handling & Representation</h5>
+                                              <p className="text-xs text-muted-foreground">Full case management and court representation</p>
+                                            </div>
+                                            <div className="text-right">
+                                              <div className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm">
+                                                <span className="font-bold">₹{(15000 + rec.experience * 500).toLocaleString()}</span>
+                                                <span className="text-xs ml-1">+ fees</span>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      
+                                      {/* Contact Info */}
+                                      <div className="bg-gray-50 p-3 rounded-lg">
+                                        <div className="flex items-center justify-between text-sm">
+                                          <span className="text-muted-foreground">Contact for detailed quote</span>
+                                          <div className="flex items-center gap-2 text-legal-navy">
+                                            <Phone className="h-3 w-3" />
+                                            <Mail className="h-3 w-3" />
+                                            <span className="font-medium">Available</span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
+
+                                {/* Hover Effect Overlay */}
+                                <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-legal-navy/0 to-legal-navy/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"></div>
                               </div>
                             ))}
                           </div>

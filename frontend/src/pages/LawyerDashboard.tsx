@@ -7,14 +7,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, Clock, FileText, Users, DollarSign, AlertCircle, Briefcase, MessageSquare, Bell, TrendingUp, User } from 'lucide-react';
+import { Calendar, Clock, FileText, Users, DollarSign, AlertCircle, Briefcase, MessageSquare, Bell, TrendingUp, User, Shield, Upload } from 'lucide-react';
 import { useLawyerDashboard, useRealTimeUpdates } from '@/hooks/useDashboard';
 import { useAuth } from '@/hooks/use-auth';
+import { api } from '@/api';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import MessagingTrigger from '@/components/MessagingTrigger';
 import LawyerProfileManagement from '@/components/LawyerProfileManagement';
 import LawyerServiceManagement from '@/components/LawyerServiceManagement';
+import LawyerOnboarding from '@/components/LawyerOnboarding';
+import OrderManagement from '@/components/OrderManagement';
+import PaymentRequests from '@/components/PaymentRequests';
+import CreatePaymentRequest from '@/components/CreatePaymentRequest';
 
 // Dashboard stats type
 interface DashboardStats {
@@ -32,10 +37,15 @@ interface Case {
     name: string;
     email: string;
   };
-  status: 'active' | 'pending' | 'closed';
+  status: 'active' | 'pending' | 'in_progress' | 'resolved' | 'completed' | 'closed';
   priority: 'high' | 'medium' | 'low';
   nextHearing?: string;
   progress: number;
+  workProof?: {
+    documentId: string;
+    uploadedAt: string;
+    description: string;
+  };
 }
 
 // Header stats cards component
@@ -87,39 +97,52 @@ const LawyerHeaderCards = ({ stats }: { stats: DashboardStats }) => (
   </div>
 );
 
-// Case Management Table component
-const CaseManagementTable = ({ cases }: { cases: Case[] }) => (
-  <Card className="mb-6">
-    <CardHeader>
-      <CardTitle className="flex items-center gap-2">
-        <Briefcase className="h-5 w-5" />
-        Case Management
-      </CardTitle>
-      <CardDescription>Manage your active cases and track progress</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <Table>
-        <TableHeader>
+// Enhanced Case Management component with tabs
+const EnhancedCaseManagement = ({ cases }: { cases: Case[] }) => {
+  const pendingCases = cases.filter(c => ['active', 'pending', 'in_progress'].includes(c.status));
+  const resolvedCases = cases.filter(c => c.status === 'resolved');
+  const completedCases = cases.filter(c => ['completed', 'closed'].includes(c.status));
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-blue-100 text-blue-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'in_progress': return 'bg-purple-100 text-purple-800';
+      case 'resolved': return 'bg-orange-100 text-orange-800';
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'closed': return 'bg-gray-100 text-gray-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const CaseTable = ({ cases, showWorkProofColumn = false }: { cases: Case[], showWorkProofColumn?: boolean }) => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Case Title</TableHead>
+          <TableHead>Client</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Priority</TableHead>
+          <TableHead>Progress</TableHead>
+          {showWorkProofColumn && <TableHead>Work Status</TableHead>}
+          <TableHead>Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {cases.length === 0 ? (
           <TableRow>
-            <TableHead>Case Title</TableHead>
-            <TableHead>Client</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Priority</TableHead>
-            <TableHead>Next Hearing</TableHead>
-            <TableHead>Progress</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableCell colSpan={showWorkProofColumn ? 7 : 6} className="text-center py-8 text-muted-foreground">
+              No cases found
+            </TableCell>
           </TableRow>
-        </TableHeader>
-        <TableBody>
-          {cases.map((case_) => (
+        ) : (
+          cases.map((case_) => (
             <TableRow key={case_._id}>
               <TableCell className="font-medium">{case_.title}</TableCell>
               <TableCell>{case_.client?.name || 'N/A'}</TableCell>
               <TableCell>
-                <Badge 
-                  variant={case_.status === 'active' ? 'default' : case_.status === 'pending' ? 'secondary' : 'outline'}
-                >
-                  {case_.status}
+                <Badge className={`capitalize ${getStatusColor(case_.status)}`}>
+                  {case_.status === 'resolved' ? 'Payment Processing' : case_.status}
                 </Badge>
               </TableCell>
               <TableCell>
@@ -129,23 +152,105 @@ const CaseManagementTable = ({ cases }: { cases: Case[] }) => (
                   {case_.priority}
                 </Badge>
               </TableCell>
-              <TableCell>{case_.nextHearing ? new Date(case_.nextHearing).toLocaleDateString() : 'TBD'}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   <Progress value={case_.progress} className="w-16" />
                   <span className="text-sm">{case_.progress}%</span>
                 </div>
               </TableCell>
+              {showWorkProofColumn && (
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    {case_.status === 'resolved' ? (
+                      <Badge variant="outline" className="text-green-600">
+                        <Upload className="h-3 w-3 mr-1" />
+                        Proof Submitted
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-gray-500">
+                        Pending
+                      </Badge>
+                    )}
+                  </div>
+                </TableCell>
+              )}
               <TableCell>
-                <Button variant="outline" size="sm">View</Button>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => window.location.href = `/case/${case_._id}/view`}
+                  >
+                    View Details
+                  </Button>
+                  {case_.status === 'resolved' && (
+                    <Badge variant="secondary" className="text-xs">
+                      Payment Pending
+                    </Badge>
+                  )}
+                </div>
               </TableCell>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </CardContent>
-  </Card>
-);
+          ))
+        )}
+      </TableBody>
+    </Table>
+  );
+
+  return (
+    <Card className="mb-6">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Briefcase className="h-5 w-5" />
+          Case Management
+        </CardTitle>
+        <CardDescription>Manage your cases and track work completion</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="pending" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="pending" className="flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Pending ({pendingCases.length})
+            </TabsTrigger>
+            <TabsTrigger value="resolved" className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Payment Processing ({resolvedCases.length})
+            </TabsTrigger>
+            <TabsTrigger value="completed" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Completed ({completedCases.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="pending" className="mt-4">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold">Active & Pending Cases</h3>
+              <p className="text-sm text-muted-foreground">Cases requiring your attention and work completion</p>
+            </div>
+            <CaseTable cases={pendingCases} showWorkProofColumn={true} />
+          </TabsContent>
+
+          <TabsContent value="resolved" className="mt-4">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold">Resolved Cases - Payment Processing</h3>
+              <p className="text-sm text-muted-foreground">Work completed, waiting for client payment confirmation</p>
+            </div>
+            <CaseTable cases={resolvedCases} />
+          </TabsContent>
+
+          <TabsContent value="completed" className="mt-4">
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold">Completed Cases</h3>
+              <p className="text-sm text-muted-foreground">Successfully completed and paid cases</p>
+            </div>
+            <CaseTable cases={completedCases} />
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
+  );
+};
 
 // Client List component
 const ClientList = () => (
@@ -314,62 +419,140 @@ const DocumentManagement = () => (
   </Card>
 );
 
-// Time Tracking component
-const TimeTracking = () => (
-  <Card className="mb-6">
-    <CardHeader>
-      <CardTitle className="flex items-center gap-2">
-        <Clock className="h-5 w-5" />
-        Time Tracking & Billing
-      </CardTitle>
-      <CardDescription>Track time and manage billing</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-          <div>
-            <p className="text-sm font-medium">Current Session</p>
-            <p className="text-xs text-muted-foreground">Smith vs. Johnson</p>
+// Enhanced Payments & Escrow Management component
+const PaymentsEscrowManagement = () => {
+  const { user } = useAuth();
+  const [orders, setOrders] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        setIsLoading(true);
+        const { data } = await api.get('/orders');
+        setOrders(data.orders || []);
+      } catch (error) {
+        console.error('Failed to fetch orders:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, []);
+
+  const formatCurrency = (amount: number, currency: string = 'INR') => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: currency.toUpperCase(),
+      minimumFractionDigits: 0,
+    }).format(amount / 100);
+  };
+
+  const getTotalEarnings = () => {
+    return orders
+      .filter(order => order.status === 'completed')
+      .reduce((total, order) => total + order.amount, 0);
+  };
+
+  const getPendingEscrow = () => {
+    return orders
+      .filter(order => order.escrowStatus === 'held')
+      .reduce((total, order) => total + order.amount, 0);
+  };
+
+  if (isLoading) {
+    return (
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Loading...</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="animate-pulse space-y-4">
+            <div className="h-16 bg-gray-200 rounded"></div>
+            <div className="h-12 bg-gray-200 rounded"></div>
           </div>
-          <div className="text-right">
-            <p className="text-lg font-bold text-legal-navy">2:45:30</p>
-            <Button size="sm" variant="outline">Stop</Button>
-          </div>
-        </div>
-        
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium">Today's Activities</h4>
-          {[
-            { case: 'Brown Property Case', duration: '1h 30m', billable: true },
-            { case: 'Contract Review', duration: '45m', billable: true },
-            { case: 'Administrative Tasks', duration: '30m', billable: false },
-          ].map((activity, index) => (
-            <div key={index} className="flex justify-between items-center py-2">
-              <div>
-                <p className="text-sm">{activity.case}</p>
-                <p className="text-xs text-muted-foreground">
-                  {activity.billable ? 'Billable' : 'Non-billable'}
-                </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="mb-6">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Shield className="h-5 w-5 text-legal-navy" />
+          Escrow & Payments
+        </CardTitle>
+        <CardDescription>Manage client payments and escrow funds</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {/* Payment Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="text-center p-4 border rounded-lg bg-green-50">
+              <div className="text-lg font-bold text-green-600">
+                {formatCurrency(getTotalEarnings())}
               </div>
-              <span className="text-sm font-medium">{activity.duration}</span>
+              <div className="text-sm text-green-700">Total Earnings</div>
             </div>
-          ))}
+            <div className="text-center p-4 border rounded-lg bg-blue-50">
+              <div className="text-lg font-bold text-blue-600">
+                {formatCurrency(getPendingEscrow())}
+              </div>
+              <div className="text-sm text-blue-700">Pending in Escrow</div>
+            </div>
+          </div>
+
+          {/* Recent Orders */}
+          <div>
+            <h4 className="text-sm font-medium mb-3">Recent Client Orders</h4>
+            <div className="space-y-2">
+              {orders.length > 0 ? orders.slice(0, 3).map((order) => (
+                <div key={order._id} className="flex justify-between items-center p-3 border rounded-lg">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">{order.orderId}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Client: {order.client?.name}
+                    </p>
+                    <Badge variant="outline" className="mt-1">
+                      {order.status.replace('_', ' ')}
+                    </Badge>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium">
+                      {formatCurrency(order.amount, order.currency)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {order.serviceType.replace('_', ' ')}
+                    </p>
+                  </div>
+                </div>
+              )) : (
+                <div className="text-center py-4 text-muted-foreground">
+                  <Shield className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No client orders yet</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="outline" size="sm">
+              <Upload className="mr-2 h-4 w-4" />
+              Upload Work
+            </Button>
+            <Button variant="outline" size="sm">
+              <DollarSign className="mr-2 h-4 w-4" />
+              View Payouts
+            </Button>
+          </div>
         </div>
-        
-        <Separator />
-        <div className="flex justify-between items-center">
-          <span className="text-sm font-medium">Total Billable Today:</span>
-          <span className="text-lg font-bold text-green-600">5h 15m</span>
-        </div>
-        
-        <Button className="w-full">
-          <DollarSign className="mr-2 h-4 w-4" />
-          Generate Invoice
-        </Button>
-      </div>
-    </CardContent>
-  </Card>
-);
+      </CardContent>
+    </Card>
+  );
+};
 
 // Team Collaboration component
 const TeamCollaboration = () => (
@@ -558,10 +741,14 @@ const LawyerDashboard: React.FC = () => {
 
           {/* Dashboard Tabs */}
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-8">
+            <TabsList className="grid w-full grid-cols-4 mb-8">
               <TabsTrigger value="overview" className="flex items-center gap-2">
                 <Briefcase className="h-4 w-4" />
                 Overview
+              </TabsTrigger>
+              <TabsTrigger value="payments" className="flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                Payments & Escrow
               </TabsTrigger>
               <TabsTrigger value="services" className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />
@@ -581,7 +768,7 @@ const LawyerDashboard: React.FC = () => {
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Column - Main Content */}
                 <div className="lg:col-span-2 space-y-6">
-                  <CaseManagementTable cases={displayCases} />
+                  <EnhancedCaseManagement cases={displayCases} />
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <ClientList />
@@ -594,10 +781,36 @@ const LawyerDashboard: React.FC = () => {
                 
                 {/* Right Column - Sidebar */}
                 <div className="space-y-6">
-                  <TimeTracking />
+                  <PaymentsEscrowManagement />
                   <TeamCollaboration />
                   <Analytics />
                 </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="payments">
+              <div className="space-y-6">
+                <LawyerOnboarding user={user} />
+                
+                <Tabs defaultValue="requests" className="w-full">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="requests">Payment Requests</TabsTrigger>
+                    <TabsTrigger value="create">Create Request</TabsTrigger>
+                    <TabsTrigger value="orders">Orders & Escrow</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="requests" className="space-y-4">
+                    <PaymentRequests userRole="lawyer" />
+                  </TabsContent>
+                  
+                  <TabsContent value="create" className="space-y-4">
+                    <CreatePaymentRequest />
+                  </TabsContent>
+                  
+                  <TabsContent value="orders" className="space-y-4">
+                    <OrderManagement userRole="lawyer" userId={user?.id || ''} />
+                  </TabsContent>
+                </Tabs>
               </div>
             </TabsContent>
             

@@ -33,7 +33,20 @@ const uploadVerificationDoc = async (req, res) => {
       uploadedBy: req.user.id
     });
 
-    await document.save();
+    try {
+      await document.save();
+    } catch (saveError) {
+      // Handle duplicate key error by generating a new unique filename
+      if (saveError.code === 11000 && saveError.keyPattern && saveError.keyPattern.fileName) {
+        console.log('Duplicate filename detected, generating new unique filename...');
+        const newTimestamp = Date.now();
+        const randomString = Math.random().toString(36).substring(2, 12);
+        document.fileName = `${req.user.id}_${documentType}_${newTimestamp}_${randomString}`;
+        await document.save();
+      } else {
+        throw saveError;
+      }
+    }
 
     res.json({
       success: true,
@@ -92,7 +105,20 @@ const uploadCaseDoc = async (req, res) => {
       status: 'pending' // Case docs need admin approval
     });
 
-    await document.save();
+    try {
+      await document.save();
+    } catch (saveError) {
+      // Handle duplicate key error by generating a new unique filename
+      if (saveError.code === 11000 && saveError.keyPattern && saveError.keyPattern.fileName) {
+        console.log('Duplicate filename detected, generating new unique filename...');
+        const newTimestamp = Date.now();
+        const randomString = Math.random().toString(36).substring(2, 12);
+        document.fileName = `case_${caseId}_${req.user.id}_${newTimestamp}_${randomString}`;
+        await document.save();
+      } else {
+        throw saveError;
+      }
+    }
 
     // Add to case
     caseItem.documents.push(document._id);
@@ -237,11 +263,8 @@ const downloadDoc = async (req, res) => {
     }
 
     // For case documents, check approval status (temporarily disabled for debugging)
-    console.log('Document status:', document.status);
     if (!document.isVerificationDoc && req.user.role !== 'admin' && document.status !== 'approved') {
-      console.log('Document not approved for download, status:', document.status);
-      // Temporarily allow pending documents for debugging
-      // return res.status(403).json({ message: 'Document not yet approved for download' });
+      return res.status(403).json({ message: 'Document not yet approved for download' });
     }
 
     res.set({

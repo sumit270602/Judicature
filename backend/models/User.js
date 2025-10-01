@@ -20,6 +20,11 @@ const userSchema = new mongoose.Schema({
   experience: { type: Number },
   hourlyRate: { type: Number },
   
+  // Stripe Connect Integration (lawyers only)
+  stripeAccountId: { type: String },
+  stripeOnboardingComplete: { type: Boolean, default: false },
+  payoutHoldUntil: { type: Date }, // Hold first N payouts for 7-14 days
+  
   // Account Status
   isActive: { type: Boolean, default: true },
   

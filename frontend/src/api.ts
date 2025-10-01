@@ -43,6 +43,11 @@ export const createCase = (data: {
   caseType: string;
   priority: string;
   lawyer?: string;
+  // Service-based fields
+  selectedService?: string;
+  serviceCategory?: string;
+  serviceType?: string;
+  useServiceBased?: boolean;
 }) => api.post('/cases', data);
 
 export const getCases = () => api.get('/cases');
@@ -50,6 +55,16 @@ export const getCases = () => api.get('/cases');
 export const getCaseById = (id: string) => api.get(`/cases/${id}`);
 
 export const updateCase = (id: string, data: any) => api.put(`/cases/${id}`, data);
+
+// Case work completion APIs
+export const uploadWorkProof = (caseId: string, formData: FormData) => api.post(`/cases/${caseId}/upload-proof`, formData, {
+  headers: {
+    'Content-Type': 'multipart/form-data',
+  },
+});
+
+export const resolveCase = (caseId: string, data: { workProofDescription?: string; resolvedAt?: string }) => 
+  api.post(`/cases/${caseId}/resolve`, data);
 
 // Recommendation APIs
 export const getLawyerRecommendations = (data: {
@@ -150,4 +165,32 @@ export const searchServices = (params: {
   minPrice?: number;
   maxPrice?: number;
   sortBy?: string;
-}) => api.get('/services/search', { params }); 
+}) => api.get('/services/search', { params });
+
+// Billing APIs
+export const getClientPayments = (params?: {
+  status?: string;
+  page?: number;
+  limit?: number;
+}) => api.get('/billing/client/payments', { params });
+
+export const getLawyerPayments = (params?: {
+  status?: string;
+  page?: number;
+  limit?: number;
+}) => api.get('/billing/lawyer/payments', { params });
+
+export const getPaymentDetails = (paymentId: string) => api.get(`/billing/payment/${paymentId}`);
+
+export const createPaymentOrder = (data: {
+  caseId: string;
+  amount: number;
+  description?: string;
+}) => api.post('/billing/create-order', data);
+
+export const verifyPayment = (data: {
+  paymentId: string;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+}) => api.post('/billing/verify-payment', data); 

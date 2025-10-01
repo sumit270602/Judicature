@@ -25,6 +25,10 @@ const app = express();
 
 // Middleware
 app.use(cors());
+
+// Special handling for Stripe webhooks - must come before express.json()
+app.use('/api/webhook/stripe', express.raw({ type: 'application/json' }));
+
 app.use(express.json());
 app.use('/api', apiRoutes);
 app.use(helmet());

@@ -13,6 +13,9 @@ router.get('/lawyer/stats', dashboardController.getLawyerStats);
 // Client Dashboard Stats
 router.get('/client/stats', dashboardController.getClientStats);
 
+// Client Recent Activity
+router.get('/client/recent-activity', dashboardController.getClientRecentActivity);
+
 // Timeline events for dashboard
 router.get('/timeline', dashboardController.getTimeline);
 

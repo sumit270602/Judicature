@@ -68,47 +68,179 @@ const getClientStats = async (req, res) => {
     const clientId = req.user.id;
     const now = new Date();
 
-    // Get active cases count - ensure proper ObjectId conversion
+    // Import required models
+    const PaymentRequest = require('../models/PaymentRequest');
+    const Payment = require('../models/Payment');
+    const Notification = require('../models/Notification');
+
+    // Get comprehensive case statistics
     const mongoose = require('mongoose');
-    const activeCases = await Case.countDocuments({
-      client: new mongoose.Types.ObjectId(clientId),
-      status: { $in: ['active', 'pending', 'open'] }
-    });
+    const [
+      totalCases,
+      activeCases,
+      completedCases,
+      pendingPaymentRequests,
+      totalPayments,
+      unreadNotifications,
+      nextHearing
+    ] = await Promise.all([
+      Case.countDocuments({ client: new mongoose.Types.ObjectId(clientId) }),
+      Case.countDocuments({ 
+        client: new mongoose.Types.ObjectId(clientId), 
+        status: { $in: ['pending', 'in_progress'] } 
+      }),
+      Case.countDocuments({ 
+        client: new mongoose.Types.ObjectId(clientId), 
+        status: { $in: ['resolved', 'completed'] } 
+      }),
+      PaymentRequest.countDocuments({ 
+        client: new mongoose.Types.ObjectId(clientId), 
+        status: 'pending' 
+      }),
+      Payment.aggregate([
+        { $match: { client: new mongoose.Types.ObjectId(clientId), status: 'completed' } },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+      Notification.countDocuments({ 
+        recipient: new mongoose.Types.ObjectId(clientId), 
+        isRead: false 
+      }),
+      Case.findOne({ 
+        client: new mongoose.Types.ObjectId(clientId), 
+        'nextHearing.date': { $exists: true, $gte: now } 
+      }).sort({ 'nextHearing.date': 1 })
+    ]);
 
-    // Get next court date
-    const nextCase = await Case.findOne({
-      client: new mongoose.Types.ObjectId(clientId),
-      nextHearing: { $gte: now }
-    })
-    .sort({ nextHearing: 1 })
-    .select('nextHearing');
+    const totalSpent = totalPayments.length > 0 ? totalPayments[0].total : 0;
+    const nextCourtDate = nextHearing?.nextHearing?.date 
+      ? new Date(nextHearing.nextHearing.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      : null;
 
-    const nextCourtDate = nextCase?.nextHearing 
-      ? new Date(nextCase.nextHearing).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      : 'None scheduled';
-
-    // Get pending actions (high priority cases or upcoming deadlines)
-    const pendingActions = await Case.countDocuments({
-      client: clientId,
-      $or: [
-        { priority: 'high', status: 'active' },
-        { 
-          nextHearing: {
-            $gte: now,
-            $lte: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) // Next 7 days
-          }
-        }
-      ]
-    });
+    const stats = {
+      totalCases,
+      activeCases,
+      completedCases,
+      pendingPayments: pendingPaymentRequests,
+      nextCourtDate,
+      totalSpent,
+      unreadNotifications
+    };
 
     res.json({
-      activeCases,
-      nextCourtDate,
-      aiAssistantAvailable: true
+      success: true,
+      stats
     });
   } catch (error) {
     console.error('Error fetching client dashboard stats:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error' 
+    });
+  }
+};
+
+// Get client recent activity
+const getClientRecentActivity = async (req, res) => {
+  try {
+    if (req.user.role !== 'client') {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Access denied. Client role required.' 
+      });
+    }
+
+    const clientId = req.user.id;
+    const limit = parseInt(req.query.limit) || 10;
+
+    // Import required models
+    const PaymentRequest = require('../models/PaymentRequest');
+    const Notification = require('../models/Notification');
+    const mongoose = require('mongoose');
+
+    // Get recent case updates
+    const recentCases = await Case.find({ client: new mongoose.Types.ObjectId(clientId) })
+      .sort({ updatedAt: -1 })
+      .limit(5)
+      .populate('lawyer', 'name')
+      .select('title caseNumber status updatedAt');
+
+    // Get recent payment requests
+    const recentPaymentRequests = await PaymentRequest.find({ client: new mongoose.Types.ObjectId(clientId) })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate('lawyer', 'name')
+      .select('amount serviceType status createdAt lawyer');
+
+    // Get recent notifications
+    const recentNotifications = await Notification.find({ recipient: new mongoose.Types.ObjectId(clientId) })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('type title message createdAt');
+
+    // Combine and format activities
+    const activities = [];
+
+    // Add case activities
+    recentCases.forEach(caseItem => {
+      activities.push({
+        _id: `case_${caseItem._id}`,
+        type: 'case_update',
+        title: `Case Update: ${caseItem.title}`,
+        description: `Case ${caseItem.caseNumber} status changed to ${caseItem.status}`,
+        timestamp: caseItem.updatedAt,
+        caseId: caseItem._id
+      });
+    });
+
+    // Add payment request activities
+    recentPaymentRequests.forEach(request => {
+      activities.push({
+        _id: `payment_${request._id}`,
+        type: 'payment_request',
+        title: `Payment Request: ₹${request.amount.toLocaleString()}`,
+        description: `${request.lawyer.name} requested payment for ${request.serviceType.replace('_', ' ')}`,
+        timestamp: request.createdAt,
+        paymentId: request._id
+      });
+    });
+
+    // Add notification activities
+    recentNotifications.forEach(notification => {
+      if (notification.type === 'court') {
+        activities.push({
+          _id: `notification_${notification._id}`,
+          type: 'court_date',
+          title: notification.title,
+          description: notification.message,
+          timestamp: notification.createdAt
+        });
+      } else if (notification.type === 'message') {
+        activities.push({
+          _id: `notification_${notification._id}`,
+          type: 'message',
+          title: notification.title,
+          description: notification.message,
+          timestamp: notification.createdAt
+        });
+      }
+    });
+
+    // Sort by timestamp and limit
+    const sortedActivities = activities
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+      .slice(0, limit);
+
+    res.json({
+      success: true,
+      activities: sortedActivities
+    });
+
+  } catch (error) {
+    console.error('Error fetching client recent activity:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch recent activity'
+    });
   }
 };
 
@@ -211,64 +343,64 @@ const getLawyerAnalytics = async (req, res) => {
 const getNotifications = async (req, res) => {
   try {
     const userId = req.user.id;
-    const userRole = req.user.role;
-
-    // This would typically come from a Notifications collection
-    // For now, we'll generate notifications based on cases
-    const caseQuery = userRole === 'lawyer' 
-      ? { lawyer: userId }
-      : { client: userId };
-
-    const urgentCases = await Case.find({
-      ...caseQuery,
-      priority: 'high',
-      status: 'active'
-    }).limit(5);
-
-    const upcomingHearings = await Case.find({
-      ...caseQuery,
-      nextHearing: {
-        $gte: new Date(),
-        $lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // Next 7 days
-      }
-    }).limit(5);
-
-    const notifications = [
-      ...urgentCases.map(case_ => ({
-        _id: `urgent-${case_._id}`,
-        title: 'High Priority Case',
-        message: `Case "${case_.title}" requires immediate attention`,
-        type: 'urgent',
-        caseId: case_._id,
-        createdAt: case_.updatedAt,
-        unread: true
-      })),
-      ...upcomingHearings.map(case_ => ({
-        _id: `hearing-${case_._id}`,
-        title: 'Upcoming Hearing',
-        message: `Hearing scheduled for ${new Date(case_.nextHearing).toLocaleDateString()}`,
-        type: 'reminder',
-        caseId: case_._id,
-        createdAt: case_.nextHearing,
-        unread: true
-      }))
-    ];
-
-    // Sort by most recent first
-    notifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const { page = 1, limit = 20, type, priority, unreadOnly } = req.query;
+    
+    let query = { recipient: userId };
+    
+    // Apply filters
+    if (type && type !== 'all') {
+      query.type = type;
+    }
+    
+    if (priority && priority !== 'all') {
+      query.priority = priority;
+    }
+    
+    if (unreadOnly === 'true') {
+      query.isRead = false;
+    }
+    
+    const Notification = require('../models/Notification');
+    
+    const notifications = await Notification.find(query)
+      .populate('relatedCase', 'title caseNumber')
+      .populate('relatedDocument', 'originalName')
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+    
+    const total = await Notification.countDocuments(query);
+    const unreadCount = await Notification.countDocuments({ 
+      recipient: userId, 
+      isRead: false 
+    });
 
     res.json({
-      notifications: notifications.slice(0, 10) // Limit to 10 most recent
+      success: true,
+      notifications,
+      unreadCount,
+      pagination: {
+        current: parseInt(page),
+        pages: Math.ceil(total / limit),
+        total,
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1
+      }
     });
   } catch (error) {
     console.error('Error fetching notifications:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Error fetching notifications', 
+      error: error.message 
+    });
   }
 };
 
 module.exports = {
   getLawyerStats,
   getClientStats,
+  getClientRecentActivity,
   getTimeline,
   getLawyerAnalytics,
   getNotifications

@@ -112,9 +112,18 @@ const requireVerificationForCaseActions = async (req, res, next) => {
 
     // Check specific actions that require verification
     const restrictedActions = ['create', 'accept', 'update_status'];
-    const action = req.body.action || req.params.action || req.query.action;
+    const action = req.body?.action || req.params?.action || req.query?.action;
 
-    if (restrictedActions.includes(action) && !user.canTakeCases()) {
+    // Also check for specific endpoint actions
+    const currentPath = req.path || req.url || '';
+    const isUploadProof = currentPath.includes('upload-proof');
+    const isResolveCase = currentPath.includes('resolve');
+    const isRestrictedEndpoint = isUploadProof || isResolveCase;
+
+    // Check if action is restricted or if it's a restricted endpoint
+    const isRestrictedAction = action && restrictedActions.includes(action);
+    
+    if ((isRestrictedAction || isRestrictedEndpoint) && !user.canTakeCases()) {
       return res.status(403).json({ 
         success: false, 
         message: 'Verified lawyer status required for this case action',

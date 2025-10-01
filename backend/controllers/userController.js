@@ -132,4 +132,136 @@ exports.updateLawyerProfile = async (req, res) => {
       error: process.env.NODE_ENV === 'development' ? err.message : 'Server error'
     });
   }
+};
+
+// Get user profile
+exports.getProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
+    }
+
+    res.json({
+      success: true,
+      user
+    });
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error' 
+    });
+  }
+};
+
+// Update user profile
+exports.updateProfile = async (req, res) => {
+  try {
+    const { name, email, phone, address } = req.body;
+    
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      { 
+        name, 
+        email, 
+        phone, 
+        address,
+        updatedAt: new Date()
+      },
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!updatedUser) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
+    }
+
+    // Update vector database if this is a lawyer
+    if (updatedUser.role === 'lawyer') {
+      await updateLawyerVector(updatedUser._id.toString(), updatedUser);
+    }
+
+    res.json({
+      success: true,
+      message: 'Profile updated successfully',
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to update profile',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Server error'
+    });
+  }
+};
+
+// Get notification settings
+exports.getNotificationSettings = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('notificationSettings');
+    
+    const defaultSettings = {
+      emailNotifications: true,
+      smsNotifications: false,
+      pushNotifications: true,
+      caseUpdates: true,
+      paymentReminders: true,
+      courtDates: true,
+      messageNotifications: true
+    };
+
+    const settings = user?.notificationSettings || defaultSettings;
+
+    res.json({
+      success: true,
+      settings
+    });
+  } catch (error) {
+    console.error('Error fetching notification settings:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error' 
+    });
+  }
+};
+
+// Update notification settings
+exports.updateNotificationSettings = async (req, res) => {
+  try {
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      { 
+        notificationSettings: req.body,
+        updatedAt: new Date()
+      },
+      { new: true, runValidators: true }
+    ).select('notificationSettings');
+
+    if (!updatedUser) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Notification settings updated successfully',
+      settings: updatedUser.notificationSettings
+    });
+  } catch (error) {
+    console.error('Error updating notification settings:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to update notification settings',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Server error'
+    });
+  }
 }; 
