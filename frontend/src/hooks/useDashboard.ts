@@ -13,7 +13,10 @@ export interface DashboardStats {
 }
 
 export interface ClientDashboardStats {
+  totalCases: number;
   activeCases: number;
+  completedCases: number;
+  pendingPayments: number;
   nextCourtDate: string;
   aiAssistantAvailable: boolean;
 }

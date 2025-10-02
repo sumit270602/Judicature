@@ -703,7 +703,7 @@ const CaseDetailsView: React.FC = () => {
                       )}
                     </div>
 
-                    <div className="mt-4 pt-4 border-t">
+                    <div className="mt-4 pt-4 border-t space-y-2">
                       <Button 
                         className="w-full justify-start bg-blue-600 hover:bg-blue-700"
                         onClick={() => setShowMessaging(true)}
@@ -711,6 +711,17 @@ const CaseDetailsView: React.FC = () => {
                         <MessageSquare className="h-4 w-4 mr-2" />
                         Message Lawyer
                       </Button>
+                      
+                      {/* Payment Button for Resolved Cases */}
+                      {caseData.status === 'resolved' && caseData.agreedPricing && (
+                        <Button 
+                          className="w-full justify-start bg-green-600 hover:bg-green-700"
+                          onClick={() => navigate(`/billing?caseId=${caseData._id}`)}
+                        >
+                          <DollarSign className="h-4 w-4 mr-2" />
+                          Pay Bill - {caseData.agreedPricing.currency || 'INR'} {caseData.agreedPricing.amount?.toLocaleString() || '0'}
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

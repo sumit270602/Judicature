@@ -53,6 +53,8 @@ interface NotificationSettings {
 const ProfileSettingsSection: React.FC = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  
+  console.log('👤 Current auth user:', user);
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     emailNotifications: true,
     smsNotifications: false,
@@ -73,15 +75,27 @@ const ProfileSettingsSection: React.FC = () => {
   });
 
   useEffect(() => {
-    fetchProfileData();
-  }, []);
+    if (user) {
+      fetchProfileData();
+    } else {
+      console.log('❌ No user in auth context, skipping profile fetch');
+      setLoading(false);
+    }
+  }, [user]);
 
   const fetchProfileData = async () => {
     try {
+      console.log('🔍 Fetching profile data...');
+      console.log('🔑 Token in localStorage:', localStorage.getItem('token') ? 'EXISTS' : 'MISSING');
+      console.log('👤 Auth user context:', user);
+      
       const [profileResponse, settingsResponse] = await Promise.all([
         api.get('/users/profile'),
         api.get('/users/notification-settings').catch(() => ({ data: {} }))
       ]);
+      
+      console.log('✅ Profile response:', profileResponse.data);
+      console.log('✅ Settings response:', settingsResponse.data);
       
       setProfile(profileResponse.data.user);
       setFormData({
@@ -94,8 +108,12 @@ const ProfileSettingsSection: React.FC = () => {
       if (settingsResponse.data.settings) {
         setNotificationSettings({ ...notificationSettings, ...settingsResponse.data.settings });
       }
-    } catch (error) {
-      console.error('Failed to fetch profile data:', error);
+    } catch (error: any) {
+      console.error('❌ Failed to fetch profile data:', error);
+      console.error('❌ Error response:', error.response?.data);
+      console.error('❌ Error status:', error.response?.status);
+      console.error('❌ Request URL:', error.config?.url);
+      console.error('❌ Request headers:', error.config?.headers);
       toast.error('Failed to load profile information');
     } finally {
       setLoading(false);
@@ -161,6 +179,27 @@ const ProfileSettingsSection: React.FC = () => {
         <CardContent>
           <div className="flex items-center justify-center h-32">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-legal-navy"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <User className="h-5 w-5" />
+            Profile & Settings
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-32">
+            <div className="text-center">
+              <AlertCircle className="h-8 w-8 text-yellow-500 mx-auto mb-2" />
+              <p className="text-muted-foreground">Please log in to view your profile</p>
+            </div>
           </div>
         </CardContent>
       </Card>

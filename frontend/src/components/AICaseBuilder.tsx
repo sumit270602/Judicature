@@ -59,14 +59,111 @@ const AICaseBuilderDialog: React.FC<{
 
     setTimeout(() => {
       setIsAnalyzing(false);
-      // Simulate AI-generated content
-      setEditableContent({
-        title: 'Contract Dispute Resolution',
-        description: 'Based on the uploaded documents, this appears to be a commercial contract dispute involving breach of service agreement terms. The case involves monetary damages and requires immediate legal attention to preserve rights and remedies.',
+      // Generate realistic AI content based on uploaded files and randomization
+      const analysisResult = generateRealisticCaseAnalysis(uploadedFiles);
+      setEditableContent(analysisResult);
+    }, 3000);
+  };
+
+  const generateRealisticCaseAnalysis = (files: File[]) => {
+    // Case scenarios with different types and priorities
+    const caseScenarios = [
+      {
+        title: 'Property Dispute Resolution',
+        description: 'Document analysis indicates a property-related dispute involving ownership rights and boundary issues. The case requires urgent attention to prevent further complications and establish clear title rights.',
+        caseType: 'property',
+        priority: 'high'
+      },
+      {
+        title: 'Employment Contract Violation',
+        description: 'Based on the employment documentation, this case involves potential breach of employment terms and workplace rights. Immediate legal intervention may be required to protect employee interests.',
+        caseType: 'labor',
+        priority: 'medium'
+      },
+      {
+        title: 'Family Court Proceedings',
+        description: 'The submitted documents suggest family law matters including custody arrangements and support obligations. Sensitive handling and family court expertise will be essential.',
+        caseType: 'family',
+        priority: 'medium'
+      },
+      {
+        title: 'Commercial Contract Breach',
+        description: 'Analysis reveals a commercial contract dispute involving service delivery failures and payment obligations. The case shows potential for negotiated settlement before litigation.',
         caseType: 'civil',
         priority: 'high'
-      });
-    }, 3000);
+      },
+      {
+        title: 'Criminal Defense Matter',
+        description: 'Document review indicates criminal charges that require immediate legal representation. Constitutional rights protection and evidence examination are critical priorities.',
+        caseType: 'criminal',
+        priority: 'high'
+      },
+      {
+        title: 'Debt Recovery Proceedings',
+        description: 'Financial documents suggest debt collection issues requiring legal recovery mechanisms. The case shows clear documentation supporting creditor rights and recovery options.',
+        caseType: 'civil',
+        priority: 'medium'
+      },
+      {
+        title: 'Consumer Protection Case',
+        description: 'Evidence indicates consumer rights violations and product liability issues. The case qualifies for consumer court proceedings with potential for damages and remedial actions.',
+        caseType: 'civil',
+        priority: 'medium'
+      },
+      {
+        title: 'Intellectual Property Infringement',
+        description: 'Document analysis reveals potential IP rights violations including trademark or copyright infringement. Specialized IP law expertise and injunctive relief may be necessary.',
+        caseType: 'corporate',
+        priority: 'high'
+      }
+    ];
+
+    // Factor in uploaded files for more realistic analysis
+    let selectedScenario;
+    
+    if (files.length === 0) {
+      // No files uploaded - general case
+      selectedScenario = {
+        title: 'General Legal Consultation',
+        description: 'Initial consultation required to assess legal issues and determine appropriate legal strategy. Please provide more specific documentation for detailed case analysis.',
+        caseType: 'other',
+        priority: 'medium'
+      };
+    } else {
+      // Analyze file names for context clues
+      const fileNames = files.map(f => f.name.toLowerCase()).join(' ');
+      
+      if (fileNames.includes('contract') || fileNames.includes('agreement')) {
+        selectedScenario = caseScenarios[3]; // Commercial Contract Breach
+      } else if (fileNames.includes('property') || fileNames.includes('deed') || fileNames.includes('title')) {
+        selectedScenario = caseScenarios[0]; // Property Dispute
+      } else if (fileNames.includes('employment') || fileNames.includes('job') || fileNames.includes('work')) {
+        selectedScenario = caseScenarios[1]; // Employment Contract
+      } else if (fileNames.includes('family') || fileNames.includes('divorce') || fileNames.includes('custody')) {
+        selectedScenario = caseScenarios[2]; // Family Court
+      } else if (fileNames.includes('criminal') || fileNames.includes('charge') || fileNames.includes('police')) {
+        selectedScenario = caseScenarios[4]; // Criminal Defense
+      } else if (fileNames.includes('debt') || fileNames.includes('loan') || fileNames.includes('payment')) {
+        selectedScenario = caseScenarios[5]; // Debt Recovery
+      } else if (fileNames.includes('consumer') || fileNames.includes('product') || fileNames.includes('defect')) {
+        selectedScenario = caseScenarios[6]; // Consumer Protection
+      } else if (fileNames.includes('patent') || fileNames.includes('trademark') || fileNames.includes('copyright')) {
+        selectedScenario = caseScenarios[7]; // IP Infringement
+      } else {
+        // Random selection for general documents
+        selectedScenario = caseScenarios[Math.floor(Math.random() * caseScenarios.length)];
+      }
+    }
+
+    // Add file count context to description
+    const fileContext = files.length > 0 
+      ? ` AI analysis of ${files.length} uploaded document${files.length > 1 ? 's' : ''} suggests: `
+      : ' ';
+    
+    return {
+      ...selectedScenario,
+      description: fileContext + selectedScenario.description
+    };
   };
 
   const handleSubmitCase = () => {

@@ -201,7 +201,12 @@ const recommendLawyersForService = async (req, res) => {
     try {
         const { serviceId, serviceCategory, serviceType, caseDescription, priority } = req.body;
         
+        console.log('🔍 Service recommendation request:', {
+            serviceId, serviceCategory, serviceType, caseDescription, priority
+        });
+        
         if (!serviceCategory && !serviceType && !serviceId) {
+            console.log('❌ Missing required parameters');
             return res.status(400).json({ error: 'Service category, type, or ID is required' });
         }
 
@@ -217,10 +222,14 @@ const recommendLawyersForService = async (req, res) => {
             if (serviceType) serviceQuery.serviceType = serviceType;
         }
 
+        console.log('📋 Service query:', serviceQuery);
+
         // Find lawyers who offer this service
         const services = await LegalService.find(serviceQuery)
             .populate('lawyer', '-password')
             .limit(20);
+            
+        console.log('📊 Found services:', services.length);
 
         if (services.length === 0) {
             // Fallback: find verified lawyers with related practice areas

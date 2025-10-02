@@ -36,6 +36,104 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '@/api';
 import { toast } from 'sonner';
 import LinkedInMessaging from '@/components/LinkedInMessaging';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ArrowRight } from 'lucide-react';
+
+// Services Modal Component
+const ServicesModal: React.FC<{ navigate: any }> = ({ navigate }) => {
+  const serviceCategories = [
+    { 
+      id: 'personal_family', 
+      name: 'Personal / Family Law',
+      description: 'Divorce, custody, family disputes',
+      icon: '👨‍👩‍👧‍👦',
+      services: ['divorce', 'family_dispute', 'child_custody', 'muslim_law', 'medical_negligence', 'motor_accident']
+    },
+    { 
+      id: 'criminal_property', 
+      name: 'Criminal / Property Law',
+      description: 'Criminal cases, property disputes',
+      icon: '⚖️',
+      services: ['criminal_case', 'property_dispute', 'landlord_tenant', 'cyber_crime', 'wills_trusts', 'labour_service']
+    },
+    { 
+      id: 'civil_debt', 
+      name: 'Civil / Debt Matters',
+      description: 'Documentation, consumer cases',
+      icon: '📋',
+      services: ['documentation', 'consumer_court', 'civil_case', 'cheque_bounce', 'recovery']
+    },
+    { 
+      id: 'corporate_law', 
+      name: 'Corporate Law',
+      description: 'Business, trademark, compliance',
+      icon: '🏢',
+      services: ['arbitration', 'trademark_copyright', 'customs_excise', 'startup_legal', 'banking_finance', 'gst_matters', 'corporate_compliance']
+    },
+    { 
+      id: 'others', 
+      name: 'Other Services',
+      description: 'Specialized legal services',
+      icon: '🔧',
+      services: ['armed_forces_tribunal', 'supreme_court', 'insurance_claims', 'immigration', 'international_law', 'other']
+    }
+  ];
+
+  const formatServiceName = (service: string) => {
+    return service.split('_').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+  };
+
+  const handleServiceSelect = (categoryId: string, serviceType: string) => {
+    navigate(`/create-case?category=${categoryId}&service=${serviceType}`);
+  };
+
+  return (
+    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2 text-xl">
+          <Shield className="h-6 w-6 text-legal-navy" />
+          Legal Services Directory
+        </DialogTitle>
+        <DialogDescription>
+          Browse our comprehensive legal services and select the one that best matches your needs
+        </DialogDescription>
+      </DialogHeader>
+
+      <div className="mt-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {serviceCategories.map((category) => (
+            <Card key={category.id} className="hover:shadow-md transition-shadow">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3 text-lg">
+                  <span className="text-2xl">{category.icon}</span>
+                  {category.name}
+                </CardTitle>
+                <CardDescription>{category.description}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {category.services.map((service) => (
+                    <Button
+                      key={service}
+                      variant="ghost"
+                      className="w-full justify-start text-left hover:bg-legal-gold/10"
+                      onClick={() => handleServiceSelect(category.id, service)}
+                    >
+                      <ArrowRight className="mr-2 h-4 w-4 text-legal-gold" />
+                      {formatServiceName(service)}
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </DialogContent>
+  );
+};
 
 interface DashboardStats {
   totalCases: number;
@@ -166,14 +264,26 @@ const ImprovedClientDashboard: React.FC = () => {
         <div className="mb-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Welcome back, {user?.name}
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">
+                Welcome back, {user?.name?.split(' ')[0] || 'Client'}
               </h1>
               <p className="text-gray-600 text-lg">
                 Here's what's happening with your legal matters today.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white font-medium px-6 py-2.5 w-full sm:w-auto"
+                  >
+                    <Shield className="h-4 w-4 mr-2" />
+                    Access Services
+                  </Button>
+                </DialogTrigger>
+                <ServicesModal navigate={navigate} />
+              </Dialog>
               <Button
                 onClick={() => navigate('/create-case')}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2.5 w-full sm:w-auto"
@@ -270,7 +380,7 @@ const ImprovedClientDashboard: React.FC = () => {
               />
               <StatCard
                 title="Pending Payments"
-                value={`₹${stats.totalSpent.toLocaleString()}`}
+                value={`₹${stats.pendingPayments}`}
                 icon={DollarSign}
                 description="Outstanding payments"
                 color="border-l-red-500"

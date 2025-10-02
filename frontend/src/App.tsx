@@ -24,7 +24,7 @@ import TimeTracking from "./pages/TimeTracking";
 import BillingManagement from "./pages/BillingManagement";
 import PaymentHistory from "./pages/PaymentHistory";
 import NotFound from "./pages/NotFound";
-import ImprovedClientDashboard from "./pages/ImprovedClientDashboard";
+import ClientDashboard from "./pages/ClientDashboard";
 import LawyerDashboard from "./pages/LawyerDashboard";
 import MessagingDemo from "./pages/MessagingDemo";
 import AuthSuccess from "./pages/AuthSuccess";
@@ -72,7 +72,7 @@ const App = () => (
             <Route path="/payment-history" element={<PaymentHistory />} />
             <Route path="/billing" element={<BillingPage />} />
             <Route path="/payment/:paymentId" element={<PaymentDetailsPage />} />
-            <Route path="/dashboard/client" element={<ImprovedClientDashboard />} />
+            <Route path="/dashboard/client" element={<ClientDashboard />} />
             <Route path="/dashboard/lawyer" element={<LawyerDashboard />} />
             <Route path="/messaging" element={<MessagingDemo />} />
             <Route path="/auth/success" element={<AuthSuccess />} />

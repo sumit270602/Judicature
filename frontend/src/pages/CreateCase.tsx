@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +26,11 @@ import {
   File,
   X,
   Phone,
-  Mail
+  Mail,
+  Shield,
+  Settings,
+  Sparkles,
+  FileText
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -85,6 +89,7 @@ const CreateCase: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
 
   // Debug logging
   useEffect(() => {
@@ -109,17 +114,36 @@ const CreateCase: React.FC = () => {
     loadServiceCategories();
   }, []);
 
-  const [formData, setFormData] = useState<CaseFormData>({
-    title: '',
-    description: '',
-    caseType: '',
-    priority: 'medium',
-    lawyer: undefined,
-    serviceCategory: undefined,
-    serviceType: undefined,
-    selectedService: undefined,
-    useServiceBased: true // Default to service-based case creation
+  const [formData, setFormData] = useState<CaseFormData>(() => {
+    // Initialize with URL parameters if available
+    const category = searchParams.get('category');
+    const service = searchParams.get('service');
+    
+    return {
+      title: '',
+      description: '',
+      caseType: '',
+      priority: 'medium',
+      lawyer: undefined,
+      serviceCategory: category || undefined,
+      serviceType: service || undefined,
+      selectedService: undefined,
+      useServiceBased: true // Default to service-based case creation
+    };
   });
+
+  // Show toast for pre-selected service
+  useEffect(() => {
+    const category = searchParams.get('category');
+    const service = searchParams.get('service');
+    
+    if (category && service) {
+      toast({
+        title: "Service Pre-selected",
+        description: `You've selected ${service.replace(/_/g, ' ')} from ${category.replace(/_/g, ' ')} category.`,
+      });
+    }
+  }, [searchParams, toast]);
   
   const [recommendations, setRecommendations] = useState<LawyerRecommendation[]>([]);
   const [selectedLawyer, setSelectedLawyer] = useState<string | null>(null);
@@ -177,29 +201,47 @@ const CreateCase: React.FC = () => {
     const fetchRecommendations = async () => {
       if (formData.description.length > 20) {
         setIsLoadingRecommendations(true);
+        console.log('🔍 Fetching recommendations with:', {
+          useServiceBased: formData.useServiceBased,
+          serviceCategory: formData.serviceCategory,
+          serviceType: formData.serviceType,
+          selectedService: formData.selectedService,
+          caseType: formData.caseType,
+          descriptionLength: formData.description.length
+        });
+        
         try {
           let response;
           
           // Use service-based recommendations if service is selected
           if (formData.useServiceBased && (formData.serviceCategory || formData.serviceType || formData.selectedService)) {
-            response = await getServiceBasedLawyerRecommendations({
+            console.log('📋 Making service-based recommendation call');
+            const requestData = {
               serviceId: formData.selectedService,
               serviceCategory: formData.serviceCategory,
               serviceType: formData.serviceType,
               caseDescription: formData.description,
               priority: formData.priority
-            });
+            };
+            console.log('📋 Service request data:', requestData);
+            
+            response = await getServiceBasedLawyerRecommendations(requestData);
           } 
           // Fall back to traditional case type recommendations
           else if (formData.caseType) {
-            response = await getLawyerRecommendations({
+            console.log('⚖️ Making case-type recommendation call');
+            const requestData = {
               caseType: formData.caseType,
               caseDescription: formData.description,
               priority: formData.priority
-            });
+            };
+            console.log('⚖️ Case type request data:', requestData);
+            
+            response = await getLawyerRecommendations(requestData);
           }
           // If service-based is enabled but no service selected yet, and no case type, show general recommendations
           else if (formData.useServiceBased && !formData.caseType) {
+            console.log('🔄 Making default recommendation call');
             // Auto-set a default case type to get some recommendations
             const defaultCaseType = 'other';
             response = await getLawyerRecommendations({
@@ -209,17 +251,22 @@ const CreateCase: React.FC = () => {
             });
           }
           
+          console.log('📊 Raw API response:', response);
+          
           if (response?.data) {
-            console.log('Recommendations response:', response.data);
-            console.log('Lawyers found:', response.data.lawyers?.length || 0);
+            console.log('✅ Recommendations response:', response.data);
+            console.log('👨‍💼 Lawyers found:', response.data.lawyers?.length || 0);
+            console.log('👨‍💼 Lawyers data:', response.data.lawyers);
             setRecommendations(response.data.lawyers || []);
           } else {
-            console.log('No response data received');
+            console.log('❌ No response data received');
+            setRecommendations([]);
           }
         } catch (error: any) {
-          console.error('Error fetching recommendations:', error);
-          console.error('Recommendations error response:', error.response?.data);
-          console.error('Request details:', {
+          console.error('❌ Error fetching recommendations:', error);
+          console.error('❌ Error response:', error.response?.data);
+          console.error('❌ Error status:', error.response?.status);
+          console.error('❌ Request details:', {
             useServiceBased: formData.useServiceBased,
             serviceCategory: formData.serviceCategory,
             serviceType: formData.serviceType,
@@ -431,216 +478,343 @@ const CreateCase: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <Header />
       
       <main className="container mx-auto px-4 pt-24 py-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="mb-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Enhanced Header with Progress */}
+          <div className="relative mb-12">
             <Button 
               variant="ghost" 
               onClick={() => navigate('/dashboard/client')}
-              className="mb-4"
+              className="mb-6 hover:bg-blue-50 text-blue-600 border-blue-200"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Dashboard
             </Button>
             
-            <div className="flex items-center gap-3 mb-2">
-              <Briefcase className="h-8 w-8 text-legal-navy" />
-              <h1 className="text-3xl font-bold text-legal-navy">Create New Case</h1>
+            {/* Main Title Section */}
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full mb-4">
+                <Briefcase className="h-8 w-8 text-white" />
+              </div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-3">
+                Legal Services Hub
+              </h1>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+                Create your legal case or browse our comprehensive legal services. Our AI-powered platform connects you with expert lawyers tailored to your specific needs.
+              </p>
+              
+              {/* Service Pre-selection Indicator */}
+              {formData.serviceCategory && formData.serviceType && (
+                <div className="mt-4 inline-block">
+                  <div className="bg-green-50 border border-green-200 rounded-full px-4 py-2">
+                    <div className="flex items-center gap-2 text-green-700">
+                      <CheckCircle className="h-4 w-4" />
+                      <span className="text-sm font-medium">
+                        Service Selected: {formData.serviceType.replace(/_/g, ' ')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-            <p className="text-muted-foreground">
-              Fill in the details below to create your new legal case. We'll recommend the best lawyers for your needs.
-            </p>
+
+            {/* Progress Steps */}
+            <div className="flex justify-center mb-8">
+              <div className="flex items-center space-x-4 bg-white rounded-full px-6 py-3 shadow-lg border">
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${formData.title || formData.serviceCategory ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                    1
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">Service & Details</span>
+                </div>
+                <div className="w-8 h-px bg-gray-300"></div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${formData.description.length > 20 ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                    2
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">Description</span>
+                </div>
+                <div className="w-8 h-px bg-gray-300"></div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${recommendations.length > 0 ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-600'}`}>
+                    3
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">Lawyer Match</span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Case Form */}
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Case Information</CardTitle>
-                  <CardDescription>
-                    Provide detailed information about your legal matter
+          {/* Main Content Grid */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+            {/* Left Column - Service Selection & Case Details */}
+            <div className="xl:col-span-2 space-y-6">
+              {/* Service Selection Card */}
+              <Card className="border-0 shadow-xl bg-gradient-to-br from-white to-blue-50/30 backdrop-blur">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-3 text-xl">
+                    <div className="p-2 bg-blue-500 rounded-lg">
+                      <Shield className="h-5 w-5 text-white" />
+                    </div>
+                    Legal Service Selection
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    Choose your legal service category and specific service type for personalized lawyer recommendations
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <form onSubmit={handleSubmit}>
+                    {/* Enhanced Service Toggle */}
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 mb-6">
+                      <div className="flex items-center space-x-3 mb-3">
+                        <div className="p-2 bg-blue-500 rounded-lg">
+                          <Sparkles className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-blue-900">Service-Based Legal Solutions</h3>
+                          <p className="text-blue-700 text-sm">Get matched with specialized lawyers and transparent pricing</p>
+                        </div>
+                        <div className="ml-auto">
+                          <input
+                            type="checkbox"
+                            id="useServiceBased"
+                            checked={formData.useServiceBased}
+                            onChange={(e) => handleInputChange('useServiceBased', e.target.checked)}
+                            className="w-5 h-5 text-blue-600 rounded"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Service Selection Grid */}
+                    {formData.useServiceBased && (
+                      <div className="space-y-6">
+                        {/* Service Category Selection */}
+                        <div className="space-y-3">
+                          <Label className="text-lg font-semibold flex items-center gap-2">
+                            <Shield className="h-5 w-5 text-blue-500" />
+                            Legal Service Category *
+                          </Label>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {Object.entries(serviceCategories).map(([key, category]: [string, any]) => (
+                              <div
+                                key={key}
+                                onClick={() => {
+                                  handleInputChange('serviceCategory', key);
+                                  handleInputChange('serviceType', '');
+                                  handleInputChange('selectedService', '');
+                                }}
+                                className={`p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 hover:shadow-md ${
+                                  formData.serviceCategory === key
+                                    ? 'border-blue-500 bg-blue-50 shadow-md'
+                                    : 'border-gray-200 hover:border-blue-300'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="text-2xl">{category.icon || '⚖️'}</div>
+                                  <div>
+                                    <h3 className="font-medium text-gray-900">{category.name}</h3>
+                                    <p className="text-sm text-gray-600">{category.description}</p>
+                                  </div>
+                                  {formData.serviceCategory === key && (
+                                    <CheckCircle className="h-5 w-5 text-blue-500 ml-auto" />
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Specific Service Selection */}
+                        {formData.serviceCategory && serviceCategories[formData.serviceCategory] && (
+                          <div className="space-y-3">
+                            <Label className="text-lg font-semibold flex items-center gap-2">
+                              <Settings className="h-5 w-5 text-indigo-500" />
+                              Specific Service *
+                            </Label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                              {serviceCategories[formData.serviceCategory].services.map((service: any) => (
+                                <div
+                                  key={service.type}
+                                  onClick={() => {
+                                    handleInputChange('serviceType', service.type);
+                                    // Auto-set case type based on service category
+                                    const categoryToCaseType: { [key: string]: string } = {
+                                      'personal_family': 'family',
+                                      'criminal_property': 'criminal',
+                                      'civil_debt': 'civil',
+                                      'corporate_law': 'corporate',
+                                      'others': 'other'
+                                    };
+                                    handleInputChange('caseType', categoryToCaseType[formData.serviceCategory] || 'other');
+                                  }}
+                                  className={`p-3 border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-sm ${
+                                    formData.serviceType === service.type
+                                      ? 'border-indigo-500 bg-indigo-50 shadow-sm'
+                                      : 'border-gray-200 hover:border-indigo-300'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium">{service.label}</span>
+                                    {formData.serviceType === service.type && (
+                                      <CheckCircle className="h-4 w-4 text-indigo-500" />
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                  </form>
+                </CardContent>
+              </Card>
+
+              {/* Case Details Card */}
+              <Card className="border-0 shadow-xl bg-gradient-to-br from-white to-indigo-50/30 backdrop-blur">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-3 text-xl">
+                    <div className="p-2 bg-indigo-500 rounded-lg">
+                      <FileText className="h-5 w-5 text-white" />
+                    </div>
+                    Case Details
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    Provide comprehensive information about your legal matter for better recommendations
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <form onSubmit={handleSubmit}>
                     {/* Case Title */}
-                    <div className="space-y-2">
-                      <Label htmlFor="title">Case Title *</Label>
+                    <div className="space-y-3">
+                      <Label htmlFor="title" className="text-base font-semibold">Case Title *</Label>
                       <Input
                         id="title"
                         placeholder="e.g., Property Dispute with Neighbor"
                         value={formData.title}
                         onChange={(e) => handleInputChange('title', e.target.value)}
-                        className={errors.title ? 'border-red-500' : ''}
+                        className={`text-base p-4 ${errors.title ? 'border-red-500' : 'border-gray-200 focus:border-indigo-500'}`}
                       />
                       {errors.title && (
-                        <p className="text-sm text-red-500">{errors.title}</p>
+                        <p className="text-sm text-red-500 flex items-center gap-1">
+                          <AlertCircle className="h-4 w-4" />
+                          {errors.title}
+                        </p>
                       )}
                     </div>
-
-                    {/* Service Selection Mode Toggle */}
-                    <div className="space-y-4">
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id="useServiceBased"
-                          checked={formData.useServiceBased}
-                          onChange={(e) => handleInputChange('useServiceBased', e.target.checked)}
-                        />
-                        <Label htmlFor="useServiceBased" className="text-sm">
-                          Use service-based case creation (Recommended)
-                        </Label>
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        Service-based creation helps you find lawyers who specialize in your specific legal need with transparent pricing.
-                      </p>
-                    </div>
-
-                    {/* Service Selection - Show when service-based is enabled */}
-                    {formData.useServiceBased && (
-                      <>
-                        {/* Service Category */}
-                        <div className="space-y-2">
-                          <Label htmlFor="serviceCategory">Legal Service Category *</Label>
-                          <Select
-                            value={formData.serviceCategory || ''}
-                            onValueChange={(value) => {
-                              handleInputChange('serviceCategory', value);
-                              // Reset dependent fields
-                              handleInputChange('serviceType', '');
-                              handleInputChange('selectedService', '');
-                            }}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select service category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(serviceCategories).map(([key, category]: [string, any]) => (
-                                <SelectItem key={key} value={key}>
-                                  {category.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {/* Service Type */}
-                        {formData.serviceCategory && serviceCategories[formData.serviceCategory] && (
-                          <div className="space-y-2">
-                            <Label htmlFor="serviceType">Specific Service *</Label>
-                            <Select
-                              value={formData.serviceType || ''}
-                              onValueChange={(value) => {
-                                handleInputChange('serviceType', value);
-                                // Auto-set case type based on service category
-                                const categoryToCaseType: { [key: string]: string } = {
-                                  'personal_family': 'family',
-                                  'criminal_property': 'criminal',
-                                  'civil_debt': 'civil',
-                                  'corporate_law': 'corporate',
-                                  'others': 'other'
-                                };
-                                handleInputChange('caseType', categoryToCaseType[formData.serviceCategory] || 'other');
-                              }}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select specific service" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {serviceCategories[formData.serviceCategory].services.map((service: any) => (
-                                  <SelectItem key={service.type} value={service.type}>
-                                    {service.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        )}
-                      </>
-                    )}
 
                     {/* Traditional Case Type - Show when service-based is disabled */}
                     {!formData.useServiceBased && (
-                      <div className="space-y-2">
-                        <Label htmlFor="caseType">Case Type *</Label>
-                      <Select
-                        value={formData.caseType}
-                        onValueChange={(value) => handleInputChange('caseType', value)}
-                      >
-                        <SelectTrigger className={errors.caseType ? 'border-red-500' : ''}>
-                          <SelectValue placeholder="Select case type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {caseTypes.map((type) => (
-                            <SelectItem key={type.value} value={type.value}>
-                              {type.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {errors.caseType && (
-                        <p className="text-sm text-red-500">{errors.caseType}</p>
-                      )}
+                      <div className="space-y-3">
+                        <Label htmlFor="caseType" className="text-base font-semibold">Case Type *</Label>
+                        <Select
+                          value={formData.caseType}
+                          onValueChange={(value) => handleInputChange('caseType', value)}
+                        >
+                          <SelectTrigger className={`text-base p-4 ${errors.caseType ? 'border-red-500' : 'border-gray-200'}`}>
+                            <SelectValue placeholder="Select case type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {caseTypes.map((type) => (
+                              <SelectItem key={type.value} value={type.value}>
+                                {type.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {errors.caseType && (
+                          <p className="text-sm text-red-500 flex items-center gap-1">
+                            <AlertCircle className="h-4 w-4" />
+                            {errors.caseType}
+                          </p>
+                        )}
                       </div>
                     )}
 
-                    {/* Priority */}
-                    <div className="space-y-2">
-                      <Label htmlFor="priority">Priority Level</Label>
-                      <Select
-                        value={formData.priority}
-                        onValueChange={(value) => handleInputChange('priority', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {priorities.map((priority) => (
-                            <SelectItem key={priority.value} value={priority.value}>
-                              {priority.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    {/* Priority Level */}
+                    <div className="space-y-3">
+                      <Label htmlFor="priority" className="text-base font-semibold">Priority Level</Label>
+                      <div className="grid grid-cols-3 gap-3">
+                        {priorities.map((priority) => (
+                          <div
+                            key={priority.value}
+                            onClick={() => handleInputChange('priority', priority.value)}
+                            className={`p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 text-center ${
+                              formData.priority === priority.value
+                                ? 'border-indigo-500 bg-indigo-50'
+                                : 'border-gray-200 hover:border-indigo-300'
+                            }`}
+                          >
+                            <div className={`text-2xl mb-2 ${
+                              priority.value === 'high' ? '🔴' : 
+                              priority.value === 'medium' ? '🟡' : '🟢'
+                            }`}>
+                              {priority.value === 'high' ? '🔴' : 
+                               priority.value === 'medium' ? '🟡' : '🟢'}
+                            </div>
+                            <span className="text-sm font-medium">{priority.label}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
 
                     {/* Case Description */}
-                    <div className="space-y-2">
-                      <Label htmlFor="description">Case Description *</Label>
-                      <Textarea
-                        id="description"
-                        placeholder="Describe your legal matter in detail. Include relevant facts, timeline, and what outcome you're seeking..."
-                        rows={6}
-                        value={formData.description}
-                        onChange={(e) => handleInputChange('description', e.target.value)}
-                        className={errors.description ? 'border-red-500' : ''}
-                      />
-                      <div className="flex justify-between items-center">
+                    <div className="space-y-3">
+                      <Label htmlFor="description" className="text-base font-semibold">Case Description *</Label>
+                      <div className="relative">
+                        <Textarea
+                          id="description"
+                          placeholder="Describe your legal matter in detail. Include relevant facts, timeline, and what outcome you're seeking... (minimum 20 characters)"
+                          rows={6}
+                          value={formData.description}
+                          onChange={(e) => handleInputChange('description', e.target.value)}
+                          className={`text-base p-4 resize-none ${
+                            errors.description ? 'border-red-500' : 
+                            formData.description.length > 20 ? 'border-green-500 focus:border-green-500' : 
+                            'border-gray-200 focus:border-indigo-500'
+                          }`}
+                        />
+                        <div className="absolute bottom-3 right-3 text-xs text-gray-500">
+                          {formData.description.length}/500
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
                         {errors.description ? (
-                          <p className="text-sm text-red-500">{errors.description}</p>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">
-                            {formData.description.length}/500 characters
+                          <p className="text-sm text-red-500 flex items-center gap-1">
+                            <AlertCircle className="h-4 w-4" />
+                            {errors.description}
                           </p>
+                        ) : (
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            {formData.description.length >= 20 && (
+                              <>
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                                <span className="text-green-600">Description looks good!</span>
+                              </>
+                            )}
+                          </div>
                         )}
-                        {formData.description.length > 20 && formData.caseType && (
-                          <div className="flex items-center gap-2 text-sm text-green-600">
-                            <Brain className="h-4 w-4" />
-                            AI recommendations enabled
+                        {formData.description.length > 20 && (formData.caseType || formData.serviceType) && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-600 rounded-full">
+                              <Brain className="h-4 w-4" />
+                              <span>AI Analysis Ready</span>
+                            </div>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {/* File Upload Section */}
-                    <div className="space-y-2">
-                      <Label>Supporting Documents</Label>
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                    {/* Enhanced File Upload Section */}
+                    <div className="space-y-3">
+                      <Label className="text-base font-semibold">Supporting Documents</Label>
+                      <div className="relative">
                         <input
                           type="file"
                           multiple
@@ -651,15 +825,23 @@ const CreateCase: React.FC = () => {
                         />
                         <label
                           htmlFor="file-upload"
-                          className="cursor-pointer flex flex-col items-center gap-2"
+                          className="cursor-pointer group block w-full"
                         >
-                          <Upload className="h-8 w-8 text-gray-400" />
-                          <p className="text-sm text-gray-600">
-                            Click to upload files or drag and drop
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            PDF, DOC, DOCX, JPG, PNG, GIF up to 10MB each
-                          </p>
+                          <div className="border-2 border-dashed border-gray-300 group-hover:border-indigo-400 rounded-xl p-8 text-center transition-colors duration-200">
+                            <div className="flex flex-col items-center gap-4">
+                              <div className="p-3 bg-gray-100 group-hover:bg-indigo-100 rounded-full transition-colors duration-200">
+                                <Upload className="h-8 w-8 text-gray-400 group-hover:text-indigo-500 transition-colors duration-200" />
+                              </div>
+                              <div>
+                                <p className="text-base font-medium text-gray-700 group-hover:text-indigo-600 transition-colors duration-200">
+                                  Click to upload files or drag and drop
+                                </p>
+                                <p className="text-sm text-gray-500 mt-1">
+                                  PDF, DOC, DOCX, JPG, PNG, GIF up to 10MB each
+                                </p>
+                              </div>
+                            </div>
+                          </div>
                         </label>
                       </div>
                       

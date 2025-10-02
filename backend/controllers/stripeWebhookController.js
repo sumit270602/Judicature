@@ -335,6 +335,69 @@ class StripeWebhookController {
       console.error('Error handling account updated:', error);
     }
   }
+
+  // Handle successful checkout completion
+  async handleCheckoutSessionCompleted(session) {
+    try {
+      console.log('Processing checkout.session.completed:', session.id);
+      
+      // Find the payment request by Stripe session ID
+      const paymentRequest = await PaymentRequest.findOne({ 
+        stripeSessionId: session.id 
+      });
+      
+      if (!paymentRequest) {
+        console.error('Payment request not found for session:', session.id);
+        return;
+      }
+
+      // Update payment request status to paid
+      paymentRequest.status = 'paid';
+      paymentRequest.paidAt = new Date();
+      await paymentRequest.save();
+
+      // Create/update order record
+      await Order.findOneAndUpdate(
+        { paymentRequestId: paymentRequest.requestId },
+        {
+          status: 'completed',
+          stripePaymentIntentId: session.payment_intent,
+          completedAt: new Date()
+        },
+        { upsert: true }
+      );
+
+      console.log(`Payment completed for request: ${paymentRequest.requestId}`);
+    } catch (error) {
+      console.error('Error handling checkout session completed:', error);
+    }
+  }
+
+  // Handle failed checkout
+  async handleCheckoutSessionExpired(session) {
+    try {
+      console.log('Processing checkout.session.expired:', session.id);
+      
+      // Find the payment request by Stripe session ID
+      const paymentRequest = await PaymentRequest.findOne({ 
+        stripeSessionId: session.id 
+      });
+      
+      if (!paymentRequest) {
+        console.error('Payment request not found for expired session:', session.id);
+        return;
+      }
+
+      // Reset payment request status back to accepted
+      paymentRequest.status = 'accepted';
+      paymentRequest.stripeSessionId = null;
+      await paymentRequest.save();
+
+      console.log(`Payment session expired for request: ${paymentRequest.requestId}`);
+    } catch (error) {
+      console.error('Error handling checkout session expired:', error);
+    }
+  }
 }
 
 module.exports = new StripeWebhookController();
