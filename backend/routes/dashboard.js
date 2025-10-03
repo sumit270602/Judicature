@@ -9,6 +9,10 @@ router.use(auth, checkVerificationStatus);
 
 // Lawyer Dashboard Stats
 router.get('/lawyer/stats', dashboardController.getLawyerStats);
+router.get('/lawyer/recent-activity', dashboardController.getLawyerRecentActivity);
+router.get('/lawyer/clients', dashboardController.getLawyerClients);
+router.get('/lawyer/clients/:clientId', dashboardController.getClientDetails);
+router.get('/lawyer/documents', dashboardController.getLawyerDocuments);
 
 // Client Dashboard Stats
 router.get('/client/stats', dashboardController.getClientStats);

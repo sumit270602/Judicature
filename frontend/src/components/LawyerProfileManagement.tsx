@@ -25,7 +25,8 @@ import {
   FileText,
   Clock,
   DollarSign,
-  Scale
+  Scale,
+  Settings
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
@@ -200,97 +201,198 @@ const LawyerProfileManagement: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Profile Header */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <Avatar className="h-20 w-20">
-                  <AvatarImage src="/api/placeholder/80/80" />
-                  <AvatarFallback className="bg-legal-navy text-white text-xl font-semibold">
-                    {profile.name.split(' ').map(n => n.charAt(0)).join('')}
-                  </AvatarFallback>
-                </Avatar>
-                {!isEditing && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="absolute -bottom-1 -right-1 h-8 w-8 p-0 rounded-full bg-white"
-                  >
-                    <Camera className="h-4 w-4" />
-                  </Button>
+      {/* Enhanced Profile Header */}
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        <CardContent className="p-8">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
+            <div className="relative">
+              <Avatar className="h-24 w-24 ring-4 ring-white shadow-lg">
+                <AvatarImage src="/api/placeholder/96/96" />
+                <AvatarFallback className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white text-2xl font-bold">
+                  {profile.name.split(' ').map(n => n.charAt(0)).join('')}
+                </AvatarFallback>
+              </Avatar>
+              {!isEditing && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="absolute -bottom-1 -right-1 h-8 w-8 p-0 rounded-full bg-white shadow-md hover:shadow-lg"
+                >
+                  <Camera className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            
+            <div className="flex-1 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <h2 className="text-3xl font-bold text-gray-900">{profile.name}</h2>
+                {getVerificationBadge()}
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-4 text-sm text-gray-600">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-blue-600" />
+                  <span>{profile.email}</span>
+                </div>
+                {profile.phone && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-green-600" />
+                    <span>{profile.phone}</span>
+                  </div>
+                )}
+                {profile.barCouncilId && (
+                  <div className="flex items-center gap-2">
+                    <Scale className="h-4 w-4 text-amber-600" />
+                    <span>Bar ID: {profile.barCouncilId}</span>
+                  </div>
                 )}
               </div>
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <h2 className="text-2xl font-playfair font-bold text-legal-navy">{profile.name}</h2>
-                  {getVerificationBadge()}
-                </div>
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <div className="flex items-center gap-1">
-                    <Mail className="h-4 w-4" />
-                    {profile.email}
+
+              {/* Professional Summary */}
+              <div className="flex flex-wrap gap-4 text-sm">
+                {profile.experience > 0 && (
+                  <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-full">
+                    <Briefcase className="h-4 w-4 text-purple-600" />
+                    <span className="font-medium">{profile.experience} years experience</span>
                   </div>
-                  {profile.phone && (
-                    <div className="flex items-center gap-1">
-                      <Phone className="h-4 w-4" />
-                      {profile.phone}
-                    </div>
-                  )}
-                </div>
+                )}
+                {profile.hourlyRate > 0 && (
+                  <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-full">
+                    <DollarSign className="h-4 w-4 text-green-600" />
+                    <span className="font-medium">₹{profile.hourlyRate}/hour</span>
+                  </div>
+                )}
+                {profile.practiceAreas.length > 0 && (
+                  <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-full">
+                    <Award className="h-4 w-4 text-indigo-600" />
+                    <span className="font-medium">{profile.practiceAreas.length} practice areas</span>
+                  </div>
+                )}
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            
+            <div className="flex flex-col gap-3">
               {!isEditing && (
                 <Button
                   onClick={() => setIsEditing(true)}
-                  className="bg-legal-navy hover:bg-legal-navy/90"
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md"
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   Edit Profile
                 </Button>
               )}
+              <Button variant="outline" className="bg-white/50">
+                <FileText className="h-4 w-4 mr-2" />
+                View Public Profile
+              </Button>
             </div>
           </div>
-        </CardHeader>
+        </CardContent>
       </Card>
 
-      {/* Profile Completeness */}
-      {profileCompleteness < 100 && (
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Your profile is {profileCompleteness}% complete. Complete your profile to improve visibility to potential clients.
-            <Progress value={profileCompleteness} className="mt-2" />
-          </AlertDescription>
-        </Alert>
-      )}
+      {/* Enhanced Profile Status Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Profile Completeness Card */}
+        <Card className={profileCompleteness === 100 ? "bg-green-50 border-green-200" : "bg-yellow-50 border-yellow-200"}>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className={`p-3 rounded-full ${profileCompleteness === 100 ? 'bg-green-100' : 'bg-yellow-100'}`}>
+                  {profileCompleteness === 100 ? (
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  ) : (
+                    <AlertCircle className="h-5 w-5 text-yellow-600" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Profile Completeness</h3>
+                  <p className="text-sm text-gray-600">
+                    {profileCompleteness === 100 ? 'Your profile is complete!' : 'Complete your profile for better visibility'}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-bold">{profileCompleteness}%</p>
+              </div>
+            </div>
+            <Progress 
+              value={profileCompleteness} 
+              className={`h-2 ${profileCompleteness === 100 ? 'bg-green-200' : 'bg-yellow-200'}`}
+            />
+            {profileCompleteness < 100 && (
+              <div className="mt-3 text-xs text-gray-600">
+                Complete missing sections to reach 100%
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Verification Status */}
-      {profile.verificationStatus !== 'verified' && (
-        <Alert className={profile.verificationStatus === 'rejected' ? 'border-red-200 bg-red-50' : 'border-yellow-200 bg-yellow-50'}>
-          <FileText className="h-4 w-4" />
-          <AlertDescription>
+        {/* Verification Status Card */}
+        <Card className={
+          profile.verificationStatus === 'verified' ? "bg-green-50 border-green-200" :
+          profile.verificationStatus === 'rejected' ? "bg-red-50 border-red-200" :
+          "bg-blue-50 border-blue-200"
+        }>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className={`p-3 rounded-full ${
+                  profile.verificationStatus === 'verified' ? 'bg-green-100' :
+                  profile.verificationStatus === 'rejected' ? 'bg-red-100' :
+                  'bg-blue-100'
+                }`}>
+                  {profile.verificationStatus === 'verified' ? (
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  ) : profile.verificationStatus === 'rejected' ? (
+                    <X className="h-5 w-5 text-red-600" />
+                  ) : (
+                    <Clock className="h-5 w-5 text-blue-600" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Verification Status</h3>
+                  <p className="text-sm text-gray-600">
+                    {profile.verificationStatus === 'verified' ? 'Your account is verified' :
+                     profile.verificationStatus === 'rejected' ? 'Verification rejected' :
+                     'Verification in progress'}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
             {profile.verificationStatus === 'pending' && (
-              <>
-                Your account is pending verification. Upload your verification documents to complete the process.
-                <Button variant="link" className="p-0 h-auto font-normal text-legal-navy">
+              <div className="space-y-3">
+                <p className="text-xs text-gray-600">
+                  Upload your bar council certificate and other documents to complete verification.
+                </p>
+                <Button variant="outline" size="sm" className="w-full bg-white">
+                  <Upload className="h-4 w-4 mr-2" />
                   Upload Documents
                 </Button>
-              </>
+              </div>
             )}
+            
             {profile.verificationStatus === 'rejected' && (
-              <>
-                Your verification was rejected. Please review the feedback and resubmit your documents.
-                <Button variant="link" className="p-0 h-auto font-normal text-red-600">
+              <div className="space-y-3">
+                <p className="text-xs text-red-600">
+                  Please review the feedback and resubmit your documents.
+                </p>
+                <Button variant="outline" size="sm" className="w-full bg-white border-red-200">
+                  <FileText className="h-4 w-4 mr-2" />
                   View Feedback
                 </Button>
-              </>
+              </div>
             )}
-          </AlertDescription>
-        </Alert>
-      )}
+            
+            {profile.verificationStatus === 'verified' && (
+              <div className="flex items-center gap-2 text-xs text-green-600">
+                <CheckCircle className="h-3 w-3" />
+                <span>Verified by Judicature team</span>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Basic Information */}
@@ -479,35 +581,74 @@ const LawyerProfileManagement: React.FC = () => {
         </Card>
       </div>
 
-      {/* Action Buttons */}
+      {/* Enhanced Action Buttons */}
       {isEditing && (
-        <div className="flex items-center justify-end gap-3 pt-6">
-          <Button
-            variant="outline"
-            onClick={handleCancel}
-            disabled={loading}
-          >
-            <X className="h-4 w-4 mr-2" />
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={loading}
-            className="bg-legal-gold hover:bg-legal-gold/90 text-legal-navy"
-          >
-            {loading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-legal-navy border-t-transparent rounded-full animate-spin mr-2" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Save Changes
-              </>
-            )}
-          </Button>
-        </div>
+        <Card className="bg-gray-50">
+          <CardContent className="p-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <AlertCircle className="h-4 w-4" />
+                <span>Make sure all required fields are filled correctly</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  onClick={handleCancel}
+                  disabled={loading}
+                  className="bg-white"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel Changes
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  disabled={loading || !profile.name || !profile.email || !profile.barCouncilId}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-md"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      Saving Profile...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Save Profile
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Additional Profile Actions */}
+      {!isEditing && (
+        <Card className="bg-gradient-to-r from-gray-50 to-gray-100">
+          <CardContent className="p-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-1">Profile Management</h3>
+                <p className="text-sm text-gray-600">Manage your professional presence and settings</p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Button variant="outline" size="sm" className="bg-white">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Update Photo
+                </Button>
+                <Button variant="outline" size="sm" className="bg-white">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Download CV
+                </Button>
+                <Button variant="outline" size="sm" className="bg-white">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Privacy Settings
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

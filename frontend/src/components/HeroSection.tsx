@@ -3,8 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, CheckCircle, Users, FileText, Clock } from 'lucide-react';
+import { useAuth } from '@/hooks/use-auth';
+import { useNavigate } from 'react-router-dom';
 
 const HeroSection = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const stats = [
     { icon: Users, label: 'Active Users', value: '10,000+' },
     { icon: FileText, label: 'Cases Managed', value: '50,000+' },
@@ -51,17 +55,38 @@ const HeroSection = () => {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 mb-12">
-              <Button size="lg" className="bg-legal-gold text-black hover:bg-legal-gold/90 px-8">
-                Start Free Trial
+              <Button 
+                size="lg" 
+                className="bg-legal-gold text-black hover:bg-legal-gold/90 px-8"
+                onClick={() => {
+                  if (user) {
+                    // Navigate to appropriate dashboard if logged in
+                    if (user.role === 'lawyer') {
+                      navigate('/dashboard/lawyer');
+                    } else if (user.role === 'client') {
+                      navigate('/dashboard/client');
+                    } else if (user.role === 'admin') {
+                      navigate('/dashboard/admin');
+                    }
+                  } else {
+                    // Navigate to registration if not logged in
+                    navigate('/register');
+                  }
+                }}
+              >
+                {user 
+                  ? (user.role === 'lawyer' ? 'Start Earning' : 'Start with Judicature')
+                  : 'Start Free Trial'
+                }
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
               <Button 
                 size="lg" 
                 variant="outline" 
                 className="border-white text-white hover:bg-white hover:text-legal-navy px-8"
-                onClick={() => window.location.href = '/services'}
+                onClick={() => navigate('/services')}
               >
-                Find Services
+                {user ? 'Explore Services' : 'Find Services'}
               </Button>
             </div>
 

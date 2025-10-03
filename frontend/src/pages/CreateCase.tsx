@@ -944,16 +944,16 @@ const CreateCase: React.FC = () => {
                           <div className="space-y-6">
                             {recommendations.map((rec) => (
                               <div 
-                                key={rec.lawyer._id}
+                                key={rec.lawyer?._id || Math.random()}
                                 className={`group relative border-2 rounded-xl cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] ${
-                                  selectedLawyer === rec.lawyer._id 
+                                  selectedLawyer === rec.lawyer?._id 
                                     ? 'border-legal-navy bg-gradient-to-br from-legal-navy/5 to-legal-navy/10 shadow-md' 
                                     : 'border-gray-200 hover:border-legal-navy/30 bg-white'
                                 }`}
-                                onClick={() => handleLawyerSelect(rec.lawyer._id)}
+                                onClick={() => rec.lawyer?._id && handleLawyerSelect(rec.lawyer._id)}
                               >
                                 {/* Selection Indicator */}
-                                {selectedLawyer === rec.lawyer._id && (
+                                {selectedLawyer === rec.lawyer?._id && (
                                   <div className="absolute -top-2 -right-2 z-10">
                                     <div className="bg-legal-navy text-white rounded-full p-1">
                                       <CheckCircle className="h-4 w-4" />
@@ -965,18 +965,18 @@ const CreateCase: React.FC = () => {
                                   {/* Header Section */}
                                   <div className="flex items-start gap-4 mb-4">
                                     <Avatar className="h-16 w-16 ring-2 ring-gray-100 group-hover:ring-legal-navy/20 transition-all">
-                                      <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${rec.lawyer.name}`} />
+                                      <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${rec.lawyer?.name || 'Unknown'}`} />
                                       <AvatarFallback className="text-lg font-semibold bg-gradient-to-br from-legal-navy to-legal-navy/80 text-white">
-                                        {rec.lawyer.name.split(' ').map(n => n[0]).join('')}
+                                        {(rec.lawyer?.name || 'UN').split(' ').map(n => n[0]).join('')}
                                       </AvatarFallback>
                                     </Avatar>
                                     
                                     <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-3 mb-2">
                                         <h3 className="text-lg font-bold text-gray-900 truncate">
-                                          {rec.lawyer.name}
+                                          {rec.lawyer?.name || 'Unknown Lawyer'}
                                         </h3>
-                                        {rec.lawyer.verificationStatus === 'verified' && (
+                                        {rec.lawyer?.verificationStatus === 'verified' && (
                                           <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100">
                                             <CheckCircle className="h-3 w-3 mr-1" />
                                             Verified
@@ -988,17 +988,17 @@ const CreateCase: React.FC = () => {
                                       <div className="flex items-center gap-6 text-sm">
                                         <div className="flex items-center gap-1">
                                           <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                                          <span className="font-semibold">{rec.rating.toFixed(1)}</span>
+                                          <span className="font-semibold">{(rec.rating || 0).toFixed(1)}</span>
                                           <span className="text-muted-foreground">rating</span>
                                         </div>
                                         <div className="flex items-center gap-1 text-green-600">
                                           <Award className="h-4 w-4" />
-                                          <span className="font-semibold">{rec.casesWon}</span>
+                                          <span className="font-semibold">{rec.casesWon || 0}</span>
                                           <span>wins</span>
                                         </div>
                                         <div className="flex items-center gap-1 text-blue-600">
                                           <Clock className="h-4 w-4" />
-                                          <span className="font-semibold">{rec.experience}</span>
+                                          <span className="font-semibold">{rec.experience || 0}</span>
                                           <span>years exp</span>
                                         </div>
                                       </div>
@@ -1007,7 +1007,7 @@ const CreateCase: React.FC = () => {
                                     {/* Match Score */}
                                     <div className="text-center">
                                       <div className="bg-legal-navy text-white rounded-full px-3 py-1 text-sm font-bold">
-                                        {Math.round(rec.similarity * 100)}%
+                                        {Math.round((rec.similarity || 0) * 100)}%
                                       </div>
                                       <div className="text-xs text-muted-foreground mt-1">match</div>
                                     </div>
@@ -1081,14 +1081,14 @@ const CreateCase: React.FC = () => {
                                             <div className="flex-1">
                                               <h4 className="font-semibold text-gray-900 mb-2">General Legal Consultation</h4>
                                               <div className="flex flex-wrap gap-2 mb-2">
-                                                {rec.specializations.slice(0, 4).map((spec, idx) => (
+                                                {(rec.specializations || []).slice(0, 4).map((spec, idx) => (
                                                   <Badge key={idx} variant="outline" className="text-xs px-2 py-1 bg-white/70 border-blue-300 text-blue-800">
                                                     {spec}
                                                   </Badge>
                                                 ))}
-                                                {rec.specializations.length > 4 && (
+                                                {(rec.specializations || []).length > 4 && (
                                                   <Badge variant="outline" className="text-xs px-2 py-1 bg-white/70 border-blue-300 text-blue-800">
-                                                    +{rec.specializations.length - 4} more areas
+                                                    +{(rec.specializations || []).length - 4} more areas
                                                   </Badge>
                                                 )}
                                               </div>
@@ -1100,7 +1100,7 @@ const CreateCase: React.FC = () => {
                                             
                                             <div className="text-right">
                                               <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
-                                                <span className="text-lg font-bold">₹{(2000 + rec.experience * 100).toLocaleString()}</span>
+                                                <span className="text-lg font-bold">₹{(2000 + (rec.experience || 0) * 100).toLocaleString()}</span>
                                                 <span className="text-sm ml-1">/hour</span>
                                               </div>
                                               <div className="text-xs text-muted-foreground mt-1">Base rate</div>
@@ -1117,7 +1117,7 @@ const CreateCase: React.FC = () => {
                                             </div>
                                             <div className="text-right">
                                               <div className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm">
-                                                <span className="font-bold">₹{(15000 + rec.experience * 500).toLocaleString()}</span>
+                                                <span className="font-bold">₹{(15000 + (rec.experience || 0) * 500).toLocaleString()}</span>
                                                 <span className="text-xs ml-1">+ fees</span>
                                               </div>
                                             </div>

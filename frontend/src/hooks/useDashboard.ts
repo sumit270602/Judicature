@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api ';
 
 // Types
 export interface DashboardStats {
@@ -10,6 +10,11 @@ export interface DashboardStats {
   todayHearings: number;
   pendingTasks: number;
   monthlyRevenue: number;
+  totalCases: number;
+  resolvedCases: number;
+  totalClients: number;
+  completedOrders: number;
+  successRate: number;
 }
 
 export interface ClientDashboardStats {
@@ -85,6 +90,27 @@ const dashboardAPI = {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     });
     return data.cases || [];
+  },
+
+  getLawyerRecentActivity: async (): Promise<any[]> => {
+    const { data } = await axios.get(`${API_BASE_URL}/dashboard/lawyer/recent-activity`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    });
+    return data.activities || [];
+  },
+
+  getLawyerClients: async (): Promise<any[]> => {
+    const { data } = await axios.get(`${API_BASE_URL}/dashboard/lawyer/clients`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    });
+    return data.clients || [];
+  },
+
+  getLawyerDocuments: async (): Promise<any[]> => {
+    const { data } = await axios.get(`${API_BASE_URL}/dashboard/lawyer/documents`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    });
+    return data.documentsByCase || [];
   },
 
   // Client Dashboard APIs
@@ -167,6 +193,24 @@ export const useLawyerDashboard = () => {
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
 
+  const recentActivityQuery = useQuery({
+    queryKey: ['lawyer', 'recent-activity'],
+    queryFn: dashboardAPI.getLawyerRecentActivity,
+    staleTime: 1 * 60 * 1000, // 1 minute
+  });
+
+  const clientsQuery = useQuery({
+    queryKey: ['lawyer', 'clients'],
+    queryFn: dashboardAPI.getLawyerClients,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  const documentsQuery = useQuery({
+    queryKey: ['lawyer', 'documents'],
+    queryFn: dashboardAPI.getLawyerDocuments,
+    staleTime: 3 * 60 * 1000, // 3 minutes
+  });
+
   const updateCaseMutation = useMutation({
     mutationFn: ({ caseId, updates }: { caseId: string; updates: Partial<Case> }) =>
       dashboardAPI.updateCase(caseId, updates),
@@ -187,8 +231,11 @@ export const useLawyerDashboard = () => {
   return {
     stats: statsQuery.data,
     cases: casesQuery.data,
-    isLoading: statsQuery.isLoading || casesQuery.isLoading,
-    error: statsQuery.error || casesQuery.error,
+    recentActivity: recentActivityQuery.data,
+    clients: clientsQuery.data,
+    documents: documentsQuery.data,
+    isLoading: statsQuery.isLoading || casesQuery.isLoading || recentActivityQuery.isLoading || clientsQuery.isLoading || documentsQuery.isLoading,
+    error: statsQuery.error || casesQuery.error || recentActivityQuery.error || clientsQuery.error || documentsQuery.error,
     updateCase: updateCaseMutation.mutate,
     createCase: createCaseMutation.mutate,
     isUpdating: updateCaseMutation.isPending || createCaseMutation.isPending,

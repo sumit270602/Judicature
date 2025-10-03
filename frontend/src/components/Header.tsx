@@ -30,10 +30,33 @@ const Header = () => {
       navigate('/dashboard/client');
     } else if (user?.role === 'lawyer') {
       navigate('/dashboard/lawyer');
+    } else if (user?.role === 'admin') {
+      navigate('/dashboard/admin');
     }
   };
 
-  const navigation = [
+  const getDashboardPath = () => {
+    if (user?.role === 'client') {
+      return '/dashboard/client';
+    } else if (user?.role === 'lawyer') {
+      return '/dashboard/lawyer';
+    } else if (user?.role === 'admin') {
+      return '/dashboard/admin';
+    }
+    return '/';
+  };
+
+  // Dynamic navigation based on authentication status
+  const navigation = user ? [
+    { name: 'Home', href: '/' },
+    { name: 'Dashboard', href: getDashboardPath() },
+    { name: 'Services', href: '/services' },
+    { name: 'Features', href: '/features' },
+    { name: 'About', href: '/about' },
+    { name: 'Testimonials', href: '/testimonials' },
+    { name: 'Pricing', href: '/pricing' },
+    { name: 'Contact', href: '/contact' },
+  ] : [
     { name: 'Home', href: '/' },
     { name: 'Services', href: '/services' },
     { name: 'Features', href: '/features' },

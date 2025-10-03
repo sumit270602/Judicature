@@ -43,14 +43,31 @@ const getLawyerStats = async (req, res) => {
       ]
     });
 
-    // Mock monthly revenue (would need billing/payment schema)
-    const monthlyRevenue = 15000; // This would be calculated from actual billing records
+    // Get additional stats
+    const totalCases = await Case.countDocuments({ lawyer: lawyerId });
+    const resolvedCases = await Case.countDocuments({ 
+      lawyer: lawyerId, 
+      status: { $in: ['resolved', 'completed', 'closed'] } 
+    });
+    
+    // Get total unique clients
+    const totalClients = await Case.distinct('client', { lawyer: lawyerId }).then(clients => clients.length);
+    
+    // Mock additional fields (would be calculated from actual data)
+    const monthlyRevenue = 15000;
+    const completedOrders = resolvedCases; // Using resolved cases as proxy
+    const successRate = totalCases > 0 ? Math.round((resolvedCases / totalCases) * 100) : 0;
 
     res.json({
       activeCases,
       todayHearings,
       pendingTasks,
-      monthlyRevenue
+      monthlyRevenue,
+      totalCases,
+      resolvedCases,
+      totalClients,
+      completedOrders,
+      successRate
     });
   } catch (error) {
     console.error('Error fetching lawyer dashboard stats:', error);
@@ -397,11 +414,317 @@ const getNotifications = async (req, res) => {
   }
 };
 
+// Get Lawyer Recent Activity
+const getLawyerRecentActivity = async (req, res) => {
+  try {
+    if (req.user.role !== 'lawyer') {
+      return res.status(403).json({ message: 'Access denied. Lawyer role required.' });
+    }
+
+    const lawyerId = req.user.id;
+    const mongoose = require('mongoose');
+    
+    // Get recent cases and activities
+    const recentCases = await Case.find({ 
+      lawyer: new mongoose.Types.ObjectId(lawyerId) 
+    })
+    .sort({ updatedAt: -1 })
+    .limit(10)
+    .populate('client', 'name email')
+    .lean();
+
+    // Mock activity data based on recent cases
+    const activities = recentCases.map((case_, index) => ({
+      _id: `activity_${case_._id}`,
+      type: index % 3 === 0 ? 'case_received' : (index % 3 === 1 ? 'case_resolved' : 'payment_received'),
+      title: index % 3 === 0 ? `New Case: ${case_.title}` : (index % 3 === 1 ? `Case Resolved: ${case_.title}` : `Payment Received from ${case_.client.name}`),
+      description: index % 3 === 0 ? `New case received from ${case_.client.name}` : (index % 3 === 1 ? `Successfully resolved case for ${case_.client.name}` : `Payment of ₹25,000 received`),
+      createdAt: case_.updatedAt,
+      caseId: case_._id,
+      clientName: case_.client.name
+    }));
+
+    res.json({ activities });
+  } catch (error) {
+    console.error('Error fetching lawyer recent activity:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Get Lawyer Clients
+const getLawyerClients = async (req, res) => {
+  try {
+    if (req.user.role !== 'lawyer') {
+      return res.status(403).json({ message: 'Access denied. Lawyer role required.' });
+    }
+
+    const lawyerId = req.user.id;
+    const mongoose = require('mongoose');
+    
+    // Get unique clients for this lawyer
+    const clientCases = await Case.aggregate([
+      { 
+        $match: { 
+          lawyer: new mongoose.Types.ObjectId(lawyerId) 
+        } 
+      },
+      {
+        $group: {
+          _id: '$client',
+          casesCount: { $sum: 1 },
+          activeCases: {
+            $sum: {
+              $cond: [{ $eq: ['$status', 'active'] }, 1, 0]
+            }
+          },
+          lastContact: { $max: '$updatedAt' },
+          caseTypes: { $addToSet: '$caseType' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'clientInfo'
+        }
+      },
+      {
+        $unwind: '$clientInfo'
+      },
+      {
+        $project: {
+          _id: '$clientInfo._id',
+          name: '$clientInfo.name',
+          email: '$clientInfo.email',
+          phone: '$clientInfo.phone',
+          casesCount: 1,
+          activeCases: 1,
+          lastContact: 1,
+          caseTypes: 1
+        }
+      },
+      {
+        $sort: { lastContact: -1 }
+      },
+      {
+        $limit: 20
+      }
+    ]);
+
+    res.json({ clients: clientCases });
+  } catch (error) {
+    console.error('Error fetching lawyer clients:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Get Lawyer Documents
+const getLawyerDocuments = async (req, res) => {
+  try {
+    if (req.user.role !== 'lawyer') {
+      return res.status(403).json({ message: 'Access denied. Lawyer role required.' });
+    }
+
+    const lawyerId = req.user.id;
+    const mongoose = require('mongoose');
+    const Document = require('../models/Document');
+    
+    // Get documents grouped by case
+    const documentsGrouped = await Case.aggregate([
+      { 
+        $match: { 
+          lawyer: new mongoose.Types.ObjectId(lawyerId) 
+        } 
+      },
+      {
+        $lookup: {
+          from: 'documents',
+          localField: '_id',
+          foreignField: 'caseId',
+          as: 'documents'
+        }
+      },
+      {
+        $match: {
+          'documents.0': { $exists: true }
+        }
+      },
+      {
+        $project: {
+          caseId: '$_id',
+          caseTitle: '$title',
+          caseStatus: '$status',
+          documents: {
+            $map: {
+              input: '$documents',
+              as: 'doc',
+              in: {
+                _id: '$$doc._id',
+                originalName: '$$doc.originalName',
+                mimeType: '$$doc.mimeType',
+                fileSize: '$$doc.fileSize',
+                uploadedAt: '$$doc.uploadedAt',
+                uploaderName: '$$doc.uploaderName'
+              }
+            }
+          }
+        }
+      },
+      {
+        $sort: { 'documents.uploadedAt': -1 }
+      },
+      {
+        $limit: 10
+      }
+    ]);
+
+    res.json({ documentsByCase: documentsGrouped });
+  } catch (error) {
+    console.error('Error fetching lawyer documents:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Get detailed client information for lawyers
+const getClientDetails = async (req, res) => {
+  try {
+    if (req.user.role !== 'lawyer') {
+      return res.status(403).json({ message: 'Access denied. Lawyer role required.' });
+    }
+
+    const lawyerId = req.user.id;
+    const { clientId } = req.params;
+
+    // First verify that this client has cases with this lawyer
+    const clientCases = await Case.find({ 
+      client: clientId, 
+      lawyer: lawyerId 
+    });
+
+    if (clientCases.length === 0) {
+      return res.status(404).json({ 
+        message: 'Client not found or no cases associated with this lawyer' 
+      });
+    }
+
+    // Get client details
+    const client = await User.findById(clientId).select('-password -stripeAccountId');
+    if (!client) {
+      return res.status(404).json({ message: 'Client not found' });
+    }
+
+    // Get comprehensive case information
+    const cases = await Case.find({ 
+      client: clientId, 
+      lawyer: lawyerId 
+    }).sort({ createdAt: -1 });
+
+    // Import Payment model
+    const Payment = require('../models/Payment');
+    const PaymentRequest = require('../models/PaymentRequest');
+
+    // Get payment information
+    const payments = await Payment.find({ 
+      clientId: clientId,
+      lawyerId: lawyerId 
+    }).sort({ createdAt: -1 });
+
+    const paymentRequests = await PaymentRequest.find({ 
+      clientId: clientId,
+      lawyerId: lawyerId 
+    }).sort({ createdAt: -1 });
+
+    // Calculate statistics
+    const totalCases = cases.length;
+    const activeCases = cases.filter(c => c.status === 'active').length;
+    const completedCases = cases.filter(c => ['resolved', 'completed', 'closed'].includes(c.status)).length;
+    
+    const totalPaid = payments
+      .filter(p => p.status === 'completed')
+      .reduce((sum, payment) => sum + payment.amount, 0);
+    
+    const pendingPayments = paymentRequests
+      .filter(pr => pr.status === 'pending')
+      .reduce((sum, request) => sum + request.amount, 0);
+
+    // Get last contact date from most recent case update or message
+    const lastContact = cases.length > 0 
+      ? new Date(Math.max(...cases.map(c => new Date(c.updatedAt))))
+      : new Date(client.createdAt);
+
+    // Build comprehensive client response
+    const clientDetails = {
+      _id: client._id,
+      name: client.name,
+      email: client.email,
+      phone: client.phone,
+      address: client.address,
+      dateOfBirth: client.dateOfBirth,
+      occupation: client.occupation,
+      company: client.company,
+      registrationDate: client.createdAt,
+      lastContact: lastContact,
+      totalCases,
+      activeCases,
+      completedCases,
+      totalPaid,
+      pendingPayments,
+      preferredCommunication: client.preferredCommunication || 'Email',
+      notes: client.bio,
+      status: client.isActive ? 'active' : 'inactive',
+      avatar: client.profilePicture,
+      cases: cases.map(c => ({
+        _id: c._id,
+        caseNumber: c.caseNumber,
+        title: c.title,
+        category: c.category,
+        status: c.status,
+        priority: c.priority,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
+        nextHearing: c.nextHearing,
+        totalAmount: c.totalAmount || 0,
+        paidAmount: c.paidAmount || 0,
+        description: c.description
+      })),
+      payments: payments.map(p => ({
+        _id: p._id,
+        amount: p.amount,
+        status: p.status,
+        date: p.createdAt,
+        method: p.method || 'Card',
+        caseId: p.caseId,
+        caseTitle: cases.find(c => c._id.toString() === p.caseId?.toString())?.title || 'N/A',
+        description: p.description
+      })),
+      paymentRequests: paymentRequests.map(pr => ({
+        _id: pr._id,
+        amount: pr.amount,
+        status: pr.status,
+        dueDate: pr.dueDate,
+        description: pr.description,
+        caseId: pr.caseId,
+        createdAt: pr.createdAt
+      }))
+    };
+
+    res.json(clientDetails);
+  } catch (error) {
+    console.error('Error fetching client details:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   getLawyerStats,
   getClientStats,
   getClientRecentActivity,
   getTimeline,
   getLawyerAnalytics,
-  getNotifications
+  getNotifications,
+  getLawyerRecentActivity,
+  getLawyerClients,
+  getLawyerDocuments,
+  getClientDetails
 };

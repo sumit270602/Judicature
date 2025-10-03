@@ -31,7 +31,7 @@ import AuthSuccess from "./pages/AuthSuccess";
 import CreateCase from "./pages/CreateCase";
 import CaseDetails from "./pages/CaseDetails";
 import CaseDetailsView from "./pages/CaseDetailsView";
-import ServiceDiscovery from "./pages/ServiceDiscovery";
+import Services from "./pages/Services";
 import BillingPage from "./pages/BillingPage";
 import PaymentDetailsPage from "./pages/PaymentDetailsPage";
 import LawyerRateManagement from "./pages/LawyerRateManagement";
@@ -40,6 +40,7 @@ import EnhancedBillingDashboard from "./pages/EnhancedBillingDashboard";
 import OrdersPage from "./pages/OrdersPage";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
+import LawyerClientDetails from "./pages/LawyerClientDetails";
 
 const queryClient = new QueryClient();
 
@@ -61,7 +62,7 @@ const App = () => (
             <Route path="/contact" element={<Contact />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/case-analysis" element={<CaseAnalysis />} />
-            <Route path="/client-management" element={<ClientManagement />} />
+            <Route path="/client-management" element={<ClientManagement />} /> 
             <Route path="/communication" element={<Communication />} />
             <Route path="/scheduling" element={<Scheduling />} />
             <Route path="/alerts" element={<Alerts />} />
@@ -74,12 +75,13 @@ const App = () => (
             <Route path="/payment/:paymentId" element={<PaymentDetailsPage />} />
             <Route path="/dashboard/client" element={<ClientDashboard />} />
             <Route path="/dashboard/lawyer" element={<LawyerDashboard />} />
+            <Route path="/lawyer/clients/:clientId" element={<LawyerClientDetails />} />
             <Route path="/messaging" element={<MessagingDemo />} />
             <Route path="/auth/success" element={<AuthSuccess />} />
             <Route path="/create-case" element={<CreateCase />} />
             <Route path="/case/:caseId" element={<CaseDetails />} />
             <Route path="/case/:caseId/view" element={<CaseDetailsView />} />
-            <Route path="/services" element={<ServiceDiscovery />} />
+            <Route path="/services" element={<Services />} />
             {/* Enhanced Payment System Routes */}
             <Route path="/lawyer/rates" element={<LawyerRateManagement />} />
             <Route path="/work-items" element={<WorkItemManagement />} />

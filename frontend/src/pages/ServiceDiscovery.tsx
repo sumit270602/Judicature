@@ -22,11 +22,17 @@ import {
   Users,
   TrendingUp,
   Phone,
-  Mail
+  Mail,
+  Bell,
+  Shield,
+  Calendar,
+  ArrowRight
 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/use-auth';
+import { useNavigate } from 'react-router-dom';
 import { 
   getServiceCategories, 
   getServicesByCategory, 
