@@ -5,7 +5,17 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, enum: ['client', 'lawyer', 'admin'], default: 'client' },
+  role: { type: String, enum: ['client', 'lawyer', 'admin', 'pending'], default: 'client' },
+  
+  // OAuth Information
+  googleId: { type: String, sparse: true },
+  isOAuthUser: { type: Boolean, default: false },
+  oauthProviders: [{
+    provider: { type: String, enum: ['google'] },
+    providerId: String,
+    email: String,
+    _id: false
+  }],
   
   // Contact Information
   phone: { type: String },

@@ -3,9 +3,56 @@ const { updateLawyerVector } = require('./recommendationController');
 
 exports.getUsers = async (req, res) => {
   try {
-    const users = await User.find().select('-password');
-    res.json(users);
+    const { 
+      role, 
+      search, 
+      page = 1, 
+      limit = 10,
+      isVerified
+    } = req.query;
+    
+    const skip = (page - 1) * limit;
+    
+    // Build filter query
+    let filter = {};
+    
+    if (role && role !== 'all') {
+      filter.role = role;
+    }
+    
+    if (isVerified !== undefined) {
+      filter.isVerified = isVerified === 'true';
+    }
+    
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { phone: { $regex: search, $options: 'i' } },
+        { _id: search.match(/^[0-9a-fA-F]{24}$/) ? search : null }
+      ].filter(Boolean);
+    }
+    
+    const users = await User.find(filter)
+      .select('-password')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+    
+    const total = await User.countDocuments(filter);
+    
+    res.json({
+      users,
+      pagination: {
+        total,
+        page: parseInt(page),
+        pages: Math.ceil(total / limit),
+        hasNext: page * limit < total,
+        hasPrev: page > 1
+      }
+    });
   } catch (err) {
+    console.error('Error fetching users:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -16,6 +63,72 @@ exports.getUserById = async (req, res) => {
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user);
   } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.getUserDetails = async (req, res) => {
+  try {
+    const Case = require('../models/Case');
+    const Order = require('../models/Order');
+    const Payment = require('../models/Payment');
+    
+    const user = await User.findById(req.params.id).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    
+    let cases = [];
+    let orders = [];
+    let payments = [];
+    
+    if (user.role === 'client') {
+      cases = await Case.find({ client: user._id })
+        .populate('lawyer', 'name email')
+        .populate('assignedLawyer', 'name email')
+        .sort({ createdAt: -1 });
+      
+      orders = await Order.find({ client: user._id })
+        .populate('lawyer', 'name email')
+        .sort({ createdAt: -1 });
+        
+      payments = await Payment.find({ client: user._id })
+        .sort({ createdAt: -1 });
+        
+    } else if (user.role === 'lawyer') {
+      cases = await Case.find({ 
+        $or: [
+          { lawyer: user._id },
+          { assignedLawyer: user._id }
+        ]
+      })
+        .populate('client', 'name email')
+        .sort({ createdAt: -1 });
+      
+      orders = await Order.find({ lawyer: user._id })
+        .populate('client', 'name email')
+        .sort({ createdAt: -1 });
+        
+      payments = await Payment.find({ lawyer: user._id })
+        .sort({ createdAt: -1 });
+    }
+    
+    const stats = {
+      totalCases: cases.length,
+      activeCases: cases.filter(c => c.status === 'active').length,
+      completedCases: cases.filter(c => c.status === 'completed').length,
+      pendingCases: cases.filter(c => c.status === 'pending').length,
+      totalOrders: orders.length,
+      totalEarnings: payments.reduce((sum, p) => sum + (p.amount || 0), 0)
+    };
+    
+    res.json({
+      user,
+      cases,
+      orders,
+      payments,
+      stats
+    });
+  } catch (err) {
+    console.error('Error fetching user details:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };

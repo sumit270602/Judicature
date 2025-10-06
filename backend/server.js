@@ -1,7 +1,12 @@
+// Load environment variables FIRST before any other requires
+const dotenv = require('dotenv');
+dotenv.config();
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const dotenv = require('dotenv');
+const passport = require('passport');
+const session = require('express-session');
 const apiRoutes = require('./routes/index');
 const http = require('http');
 const socketio = require('socket.io');
@@ -18,8 +23,8 @@ const Payment = require('./models/Payment');
 const Invoice = require('./models/Invoice');
 const TimeTracking = require('./models/TimeTracking');
 
-// Load environment variables
-dotenv.config();
+// Import OAuth controller to initialize passport strategies (after env vars are loaded)
+require('./controllers/oauthController');
 
 const app = express();
 
@@ -27,6 +32,18 @@ const app = express();
 app.use(helmet());
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100 }));
 app.use(cors());
+
+// Session configuration for passport
+app.use(session({
+  secret: process.env.JWT_SECRET || 'fallback-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false } // Set to true in production with HTTPS
+}));
+
+// Initialize passport
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Special handling for Stripe webhooks - must come before express.json()
 app.use('/api/webhook/stripe', express.raw({ type: 'application/json' }));

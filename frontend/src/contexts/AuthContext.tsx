@@ -99,6 +99,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           window.location.href = '/dashboard/client';
         } else if (user.role === 'lawyer') {
           window.location.href = '/dashboard/lawyer';
+        } else if (user.role === 'admin') {
+          window.location.href = '/dashboard/admin';
         }
       }, 1000);
       

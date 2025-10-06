@@ -187,6 +187,15 @@ exports.createCase = async (req, res) => {
 
 exports.getCases = async (req, res) => {
   try {
+    const { 
+      page = 1, 
+      limit = 10, 
+      status, 
+      priority, 
+      caseType, 
+      search 
+    } = req.query;
+
     let query = {};
     
     // Filter cases based on user role
@@ -196,16 +205,50 @@ exports.getCases = async (req, res) => {
       query.lawyer = req.user.id;
     }
     // Admin can see all cases (no filter)
+
+    // Apply additional filters
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+    
+    if (priority && priority !== 'all') {
+      query.priority = priority;
+    }
+    
+    if (caseType && caseType !== 'all') {
+      query.caseType = caseType;
+    }
+
+    // Add search functionality
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+        { caseNumber: { $regex: search, $options: 'i' } },
+        { caseType: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Calculate pagination
+    const skip = (page - 1) * limit;
+    const total = await Case.countDocuments(query);
     
     const cases = await Case.find(query)
       .populate('client', 'name email role')
       .populate('lawyer', 'name email role')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
     
     res.json({ 
-      success: true, 
       cases,
-      count: cases.length 
+      pagination: {
+        total,
+        page: parseInt(page),
+        pages: Math.ceil(total / limit),
+        hasNext: page * limit < total,
+        hasPrev: page > 1
+      }
     });
   } catch (err) {
     console.error('Get cases error:', err);

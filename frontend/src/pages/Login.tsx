@@ -4,30 +4,80 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Scale, Eye, EyeOff } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
 import { useEffect } from 'react';
+import OAuthProviders from '@/components/auth/OAuthProviders';
+import { toast } from 'sonner';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { signIn, user } = useAuth();
+  const { signIn, signInWithOAuth, user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
+    // Handle OAuth callback
+    const oauthToken = searchParams.get('oauth_token');
+    const oauthSuccess = searchParams.get('oauth_success');
+    
+    if (oauthToken && oauthSuccess === 'true') {
+      // Extract user data from token (this would normally be done more securely)
+      try {
+        const payload = JSON.parse(atob(oauthToken.split('.')[1]));
+        // Store the token and navigate
+        localStorage.setItem('token', oauthToken);
+        toast.success('Successfully signed in with Google!');
+        
+        // Navigate based on role
+        if (payload.role === 'admin') {
+          navigate('/dashboard/admin');
+        } else if (payload.role === 'client') {
+          navigate('/dashboard/client');
+        } else if (payload.role === 'lawyer') {
+          navigate('/dashboard/lawyer');
+        } else {
+          navigate('/');
+        }
+      } catch (error) {
+        console.error('Error processing OAuth token:', error);
+        toast.error('Error processing OAuth login');
+      }
+    }
+
+    // Handle OAuth errors
+    const error = searchParams.get('error');
+    if (error) {
+      switch (error) {
+        case 'oauth_error':
+          toast.error('OAuth authentication failed. Please try again.');
+          break;
+        case 'oauth_failed':
+          toast.error('OAuth login failed. Please try again.');
+          break;
+        case 'token_error':
+          toast.error('Authentication error. Please try again.');
+          break;
+        default:
+          toast.error('Login failed. Please try again.');
+      }
+    }
+
     if (user) {
-
-      navigate('/');
-
-      if (user.role === 'client') {
+      if (user.role === 'admin') {
+        navigate('/dashboard/admin');
+      } else if (user.role === 'client') {
         navigate('/dashboard/client');
       } else if (user.role === 'lawyer') {
         navigate('/dashboard/lawyer');
+      } else {
+        navigate('/');
       }
     }
-  }, [user, navigate]);
+  }, [user, navigate, searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +147,9 @@ const Login = () => {
               {loading ? 'Signing In...' : 'Sign In'}
             </Button>
           </form>
+          
+          <OAuthProviders className="mt-6" disabled={loading} />
+          
           <div className="mt-6 text-center space-y-2">
             <div className="text-sm text-gray-600">
               Don't have an account?{' '}

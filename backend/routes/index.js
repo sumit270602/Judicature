@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 router.use('/auth', require('./auth'));
+router.use('/auth', require('./oauth'));
 router.use('/users', require('./users'));
 router.use('/cases', require('./cases'));
 router.use('/chat', require('./chat'));
@@ -14,6 +15,7 @@ router.use('/notifications', require('./notifications'));
 router.use('/search', require('./search'));
 router.use('/services', require('./services'));
 router.use('/billing', require('./billing'));
+router.use('/admin', require('./admin'));
 
 // Enhanced Payment System Routes
 router.use('/rate-cards', require('./rateCards'));

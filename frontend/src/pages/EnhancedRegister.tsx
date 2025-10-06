@@ -14,6 +14,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect } from 'react';
 import { LawyerProfile } from '@/types/auth';
+import OAuthProviders from '@/components/auth/OAuthProviders';
 
 const PRACTICE_AREAS = [
   { value: 'civil', label: 'Civil Law' },
@@ -550,6 +551,8 @@ const EnhancedRegister = () => {
               )}
             </div>
           </form>
+          
+          <OAuthProviders className="mt-6" disabled={loading} buttonText="Sign up with Google" />
           
           <div className="mt-6 text-center space-y-2">
             <div className="text-sm text-gray-600">

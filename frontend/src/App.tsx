@@ -8,6 +8,8 @@ import StripeProvider from "@/components/StripeProvider";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/EnhancedRegister";
+import OAuthRoleSelection from "./pages/OAuthRoleSelection";
+import OAuthCallback from "./pages/OAuthCallback";
 import Features from "./pages/Features";
 import About from "./pages/About";
 import Testimonials from "./pages/Testimonials";
@@ -26,11 +28,15 @@ import PaymentHistory from "./pages/PaymentHistory";
 import NotFound from "./pages/NotFound";
 import ClientDashboard from "./pages/ClientDashboard";
 import LawyerDashboard from "./pages/LawyerDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+import ProtectedAdminRoute from "./components/ProtectedAdminRoute";
 import MessagingDemo from "./pages/MessagingDemo";
 import AuthSuccess from "./pages/AuthSuccess";
 import CreateCase from "./pages/CreateCase";
 import CaseDetails from "./pages/CaseDetails";
 import CaseDetailsView from "./pages/CaseDetailsView";
+import VerificationDetailsPage from "./pages/VerificationDetailsPage";
+import AdminCaseDetailsPage from "./pages/AdminCaseDetailsPage";
 import Services from "./pages/Services";
 import BillingPage from "./pages/BillingPage";
 import PaymentDetailsPage from "./pages/PaymentDetailsPage";
@@ -41,6 +47,7 @@ import OrdersPage from "./pages/OrdersPage";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
 import LawyerClientDetails from "./pages/LawyerClientDetails";
+import UserDetailsPage from "./pages/UserDetailsPage";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +63,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/oauth/role-selection" element={<OAuthRoleSelection />} />
+            <Route path="/oauth/callback" element={<OAuthCallback />} />
             <Route path="/features" element={<Features />} />
             <Route path="/about" element={<About />} />
             <Route path="/testimonials" element={<Testimonials />} />
@@ -75,6 +84,31 @@ const App = () => (
             <Route path="/payment/:paymentId" element={<PaymentDetailsPage />} />
             <Route path="/dashboard/client" element={<ClientDashboard />} />
             <Route path="/dashboard/lawyer" element={<LawyerDashboard />} />
+            <Route path="/dashboard/admin" element={
+              <ProtectedAdminRoute>
+                <AdminDashboard />
+              </ProtectedAdminRoute>
+            } />
+            <Route path="/admin" element={
+              <ProtectedAdminRoute>
+                <AdminDashboard />
+              </ProtectedAdminRoute>
+            } />
+            <Route path="/admin/users/:userId/details" element={
+              <ProtectedAdminRoute>
+                <UserDetailsPage />
+              </ProtectedAdminRoute>
+            } />
+            <Route path="/admin/verification/:userId" element={
+              <ProtectedAdminRoute>
+                <VerificationDetailsPage />
+              </ProtectedAdminRoute>
+            } />
+            <Route path="/admin/cases/:caseId" element={
+              <ProtectedAdminRoute>
+                <AdminCaseDetailsPage />
+              </ProtectedAdminRoute>
+            } />
             <Route path="/lawyer/clients/:clientId" element={<LawyerClientDetails />} />
             <Route path="/messaging" element={<MessagingDemo />} />
             <Route path="/auth/success" element={<AuthSuccess />} />
