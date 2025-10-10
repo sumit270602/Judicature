@@ -48,6 +48,8 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
 import LawyerClientDetails from "./pages/LawyerClientDetails";
 import UserDetailsPage from "./pages/UserDetailsPage";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +65,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
             <Route path="/oauth/role-selection" element={<OAuthRoleSelection />} />
             <Route path="/oauth/callback" element={<OAuthCallback />} />
             <Route path="/features" element={<Features />} />

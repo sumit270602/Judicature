@@ -49,7 +49,11 @@ const userSchema = new mongoose.Schema({
   
   // Profile
   profilePicture: { type: String },
-  bio: { type: String, maxlength: 500 }
+  bio: { type: String, maxlength: 500 },
+  
+  // Password Reset
+  passwordResetToken: { type: String },
+  passwordResetExpires: { type: Date }
 }, {
   timestamps: true
 });

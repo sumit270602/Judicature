@@ -93,9 +93,7 @@ const CreateCase: React.FC = () => {
 
   // Debug logging
   useEffect(() => {
-    console.log('CreateCase component loaded');
-    console.log('Current user:', user);
-    console.log('Token in localStorage:', localStorage.getItem('token'));
+    // CreateCase component initialized
   }, [user]);
 
   // Load service categories on component mount
@@ -201,21 +199,14 @@ const CreateCase: React.FC = () => {
     const fetchRecommendations = async () => {
       if (formData.description.length > 20) {
         setIsLoadingRecommendations(true);
-        console.log('🔍 Fetching recommendations with:', {
-          useServiceBased: formData.useServiceBased,
-          serviceCategory: formData.serviceCategory,
-          serviceType: formData.serviceType,
-          selectedService: formData.selectedService,
-          caseType: formData.caseType,
-          descriptionLength: formData.description.length
-        });
+        // Fetching lawyer recommendations based on case details
         
         try {
           let response;
           
           // Use service-based recommendations if service is selected
           if (formData.useServiceBased && (formData.serviceCategory || formData.serviceType || formData.selectedService)) {
-            console.log('📋 Making service-based recommendation call');
+            // Making service-based recommendation call
             const requestData = {
               serviceId: formData.selectedService,
               serviceCategory: formData.serviceCategory,
@@ -223,19 +214,19 @@ const CreateCase: React.FC = () => {
               caseDescription: formData.description,
               priority: formData.priority
             };
-            console.log('📋 Service request data:', requestData);
+            // Service request prepared
             
             response = await getServiceBasedLawyerRecommendations(requestData);
           } 
           // Fall back to traditional case type recommendations
           else if (formData.caseType) {
-            console.log('⚖️ Making case-type recommendation call');
+            // Making case-type recommendation call
             const requestData = {
               caseType: formData.caseType,
               caseDescription: formData.description,
               priority: formData.priority
             };
-            console.log('⚖️ Case type request data:', requestData);
+            // Case type request prepared
             
             response = await getLawyerRecommendations(requestData);
           }

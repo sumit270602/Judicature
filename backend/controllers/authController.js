@@ -130,6 +130,21 @@ exports.login = async (req, res) => {
 
     // Special handling for lawyers with rejected verification
     if (user.role === 'lawyer' && user.verificationStatus === 'rejected') {
+      // Send login notification even for rejected lawyers
+      try {
+        const emailService = require('../utils/emailService');
+        const loginDetails = {
+          ipAddress: req.ip || req.connection.remoteAddress || 'Unknown',
+          userAgent: req.get('User-Agent') || 'Unknown',
+          location: req.get('CF-IPCountry') || 'Unknown',
+          timestamp: new Date().toLocaleString()
+        };
+
+        await emailService.sendLoginNotification(user.email, user.name, loginDetails);
+      } catch (emailError) {
+        console.error('Failed to send login notification email:', emailError);
+      }
+
       return res.status(200).json({ 
         success: true,
         token: jwt.sign(
@@ -157,6 +172,22 @@ exports.login = async (req, res) => {
       process.env.JWT_SECRET, 
       { expiresIn: '7d' }
     );
+
+    // Send login notification email
+    try {
+      const emailService = require('../utils/emailService');
+      const loginDetails = {
+        ipAddress: req.ip || req.connection.remoteAddress || 'Unknown',
+        userAgent: req.get('User-Agent') || 'Unknown',
+        location: req.get('CF-IPCountry') || 'Unknown', // Cloudflare header, can be enhanced with IP geolocation
+        timestamp: new Date().toLocaleString()
+      };
+
+      await emailService.sendLoginNotification(user.email, user.name, loginDetails);
+    } catch (emailError) {
+      console.error('Failed to send login notification email:', emailError);
+      // Don't fail login if email fails
+    }
 
     // Return user data (without password)
     res.json({ 
@@ -190,5 +221,119 @@ exports.getMe = async (req, res) => {
   } catch (err) {
     console.error('Get user error:', err);
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Forgot password - send reset token
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: 'Please provide email address' });
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      // Don't reveal if user exists or not for security
+      return res.json({ 
+        success: true, 
+        message: 'If an account with that email exists, a reset link has been sent.' 
+      });
+    }
+
+    // Generate reset token
+    const crypto = require('crypto');
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+
+    // Set reset token and expiration (1 hour)
+    user.passwordResetToken = resetTokenHash;
+    user.passwordResetExpires = Date.now() + 60 * 60 * 1000; // 1 hour
+    await user.save();
+
+    // Send reset email
+    try {
+      const emailService = require('../utils/emailService');
+      await emailService.sendForgotPasswordEmail(user.email, user.name, resetToken);
+      
+      res.json({ 
+        success: true, 
+        message: 'Password reset link sent to your email' 
+      });
+    } catch (emailError) {
+      // Remove reset token if email fails
+      user.passwordResetToken = undefined;
+      user.passwordResetExpires = undefined;
+      await user.save();
+      
+      console.error('Failed to send password reset email:', emailError);
+      res.status(500).json({ 
+        message: 'Failed to send reset email. Please try again.' 
+      });
+    }
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.status(500).json({ message: 'Server error during password reset request' });
+  }
+};
+
+// Reset password with token
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ message: 'Token and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+    }
+
+    // Hash the token to compare with stored hash
+    const crypto = require('crypto');
+    const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    // Find user with valid reset token
+    const user = await User.findOne({
+      passwordResetToken: resetTokenHash,
+      passwordResetExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
+
+    // Update password
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    user.password = hashedPassword;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save();
+
+    // Generate new JWT token
+    const jwtToken = jwt.sign(
+      { id: user._id, role: user.role }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: '7d' }
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Password reset successfully',
+      token: jwtToken,
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        email: user.email, 
+        role: user.role,
+        verificationStatus: user.verificationStatus,
+        canTakeCases: user.canTakeCases()
+      }
+    });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ message: 'Server error during password reset' });
   }
 }; 

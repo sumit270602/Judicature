@@ -1,11 +1,43 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search as SearchIcon, Filter, FileText, Users, Calendar, Folder } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import { 
+  Search as SearchIcon, 
+  Filter, 
+  FileText, 
+  Users, 
+  Calendar, 
+  Folder,
+  Star,
+  Clock,
+  Tag,
+  BookOpen,
+  Briefcase,
+  Building,
+  MapPin,
+  AlertCircle,
+  TrendingUp,
+  Sparkles,
+  Eye,
+  Download,
+  Share2,
+  BookmarkPlus,
+  Zap,
+  Target,
+  Globe,
+  Brain,
+  ChevronDown,
+  ChevronUp,
+  X
+} from 'lucide-react';
 
 const Search = () => {
   const [searchQuery, setSearchQuery] = useState('');

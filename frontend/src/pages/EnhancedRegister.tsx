@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useEffect } from 'react';
 import { LawyerProfile } from '@/types/auth';
 import OAuthProviders from '@/components/auth/OAuthProviders';
+import Header from '@/components/Header';
 
 const PRACTICE_AREAS = [
   { value: 'civil', label: 'Civil Law' },
@@ -484,21 +485,26 @@ const EnhancedRegister = () => {
   const isLastStep = step === totalSteps;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-legal-navy via-blue-900 to-blue-800 flex items-center justify-center p-4">
-      <Card className="w-full max-w-2xl">
-        <CardHeader className="text-center">
-          <div className="flex items-center justify-center mb-4">
-            <div className="bg-legal-navy p-3 rounded-lg">
-              <Scale className="h-8 w-8 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-legal-navy via-blue-900 to-blue-800">
+      <Header />
+      <div className="flex items-center justify-center min-h-screen p-4 pt-20">
+      <div className="w-full max-w-2xl">
+        <Card className="shadow-2xl border-0 backdrop-blur-sm bg-white/95">
+          <CardHeader className="text-center space-y-4 pb-6">
+            <div className="flex items-center justify-center">
+              <div className="bg-gradient-to-br from-legal-navy to-blue-800 p-4 rounded-2xl shadow-lg">
+                <Scale className="h-10 w-10 text-white" />
+              </div>
             </div>
-          </div>
-          <CardTitle className="text-2xl font-playfair">Join Judicature</CardTitle>
-          <CardDescription>
-            Create your account to get started with our legal platform
-          </CardDescription>
-        </CardHeader>
+            <CardTitle className="text-3xl font-playfair font-bold text-gray-900">
+              Join Judicature
+            </CardTitle>
+            <CardDescription className="text-lg text-gray-600">
+              Create your account to get started with our comprehensive legal platform
+            </CardDescription>
+          </CardHeader>
         
-        <CardContent>
+          <CardContent className="p-8">
           {renderStepIndicator()}
           
           <form onSubmit={handleRegister} className="space-y-6">
@@ -563,7 +569,9 @@ const EnhancedRegister = () => {
             </div>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
+      </div>
     </div>
   );
 };

@@ -162,7 +162,7 @@ const CaseDetails: React.FC = () => {
 
         if (documentsResponse.data.success) {
           const docs = documentsResponse.data.documents || [];
-          console.log('Documents received:', docs);
+          // Documents received from API
           setDocuments(docs);
         }
       } catch (error: any) {
@@ -375,12 +375,7 @@ const CaseDetails: React.FC = () => {
     setIsLoadingLawyers(true);
     
     try {
-      // Debug: Log the case data being sent
-      console.log('Case data for API call:', {
-        caseType: caseData?.caseType,
-        caseDescription: caseData?.description,
-        fullCaseData: caseData
-      });
+      // Preparing case data for lawyer recommendations
       
       // Get lawyer recommendations for this case
       const response = await fetch('/api/recommendations/lawyers-for-case', {
@@ -395,12 +390,11 @@ const CaseDetails: React.FC = () => {
         })
       });
       
-      console.log('API Response status:', response.status);
-      console.log('API Response headers:', response.headers);
+      // Processing API response
       
       if (response.ok) {
         const data = await response.json();
-        console.log('API Response data:', data);
+        // Lawyer recommendations received
         setLawyers(data.lawyers || []);
       } else {
         const errorText = await response.text();

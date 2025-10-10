@@ -23,28 +23,28 @@ const HeroSection = () => {
   ];
 
   return (
-    <section id="home" className="pt-16 pb-20 bg-gradient-to-br from-legal-navy via-blue-900 to-blue-800 relative overflow-hidden">
+    <section id="home" className="pt-20 pb-16 lg:pt-24 lg:pb-20 bg-gradient-to-br from-legal-navy via-blue-900 to-blue-800 relative overflow-hidden">
       <div className="hero-pattern absolute inset-0"></div>
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           {/* Left Content */}
-          <div className="text-white animate-fade-up">
-            <Badge className="mb-6 bg-legal-gold text-black hover:bg-legal-gold/90">
+          <div className="text-white animate-fade-up text-center lg:text-left">
+            <Badge className="mb-4 lg:mb-6 bg-legal-gold text-black hover:bg-legal-gold/90 inline-block">
               🚀 Next-Generation Legal Technology
             </Badge>
             
-            <h1 className="text-5xl lg:text-6xl font-playfair font-bold mb-6 leading-tight">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-playfair font-bold mb-4 lg:mb-6 leading-tight">
               Revolutionize Your
               <span className="text-legal-gold block">Legal Practice</span>
             </h1>
             
-            <p className="text-xl text-blue-100 mb-8 leading-relaxed">
+            <p className="text-lg sm:text-xl text-blue-100 mb-6 lg:mb-8 leading-relaxed max-w-2xl mx-auto lg:mx-0">
               Streamline case management, enhance client communication, and leverage AI-powered insights to transform your legal workflow. Join thousands of legal professionals already using Judicature.
             </p>
 
             {/* Benefits List */}
-            <div className="grid grid-cols-2 gap-3 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6 lg:mb-8 max-w-md mx-auto lg:mx-0">
               {benefits.map((benefit, index) => (
                 <div key={index} className="flex items-center space-x-2">
                   <CheckCircle className="h-5 w-5 text-legal-gold flex-shrink-0" />
@@ -54,7 +54,7 @@ const HeroSection = () => {
             </div>
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-12">
+            <div className="flex flex-col sm:flex-row gap-4 mb-8 lg:mb-12 justify-center lg:justify-start">
               <Button 
                 size="lg" 
                 className="bg-legal-gold text-black hover:bg-legal-gold/90 px-8"
@@ -91,19 +91,19 @@ const HeroSection = () => {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-6">
+            <div className="grid grid-cols-3 gap-4 sm:gap-6 max-w-sm mx-auto lg:mx-0">
               {stats.map((stat, index) => (
                 <div key={index} className="text-center">
-                  <stat.icon className="h-8 w-8 text-legal-gold mx-auto mb-2" />
-                  <div className="text-2xl font-bold">{stat.value}</div>
-                  <div className="text-sm text-blue-200">{stat.label}</div>
+                  <stat.icon className="h-6 w-6 sm:h-8 sm:w-8 text-legal-gold mx-auto mb-2" />
+                  <div className="text-lg sm:text-xl lg:text-2xl font-bold">{stat.value}</div>
+                  <div className="text-xs sm:text-sm text-blue-200">{stat.label}</div>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Right Content - Dashboard Preview */}
-          <div className="relative animate-float">
+          <div className="relative animate-float mt-8 lg:mt-0 hidden sm:block">
             <Card className="p-6 bg-white/10 backdrop-blur-lg border-white/20 shadow-2xl">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">

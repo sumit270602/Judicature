@@ -143,6 +143,7 @@ exports.createCase = async (req, res) => {
     
     // Create notification for case creation
     const Notification = require('../models/Notification');
+    const emailService = require('../utils/emailService');
     
     // Notify client
     const clientNotification = new Notification({
@@ -158,6 +159,21 @@ exports.createCase = async (req, res) => {
     
     await clientNotification.save();
     
+    // Send email notification to client
+    try {
+      await emailService.sendCaseCreationNotification(
+        populatedCase.client.email,
+        populatedCase.client.name,
+        'client',
+        populatedCase.title,
+        populatedCase.caseNumber,
+        null, // clientName not needed for client email
+        populatedCase.lawyer?.name || null
+      );
+    } catch (emailError) {
+      console.error('Failed to send case creation email to client:', emailError);
+    }
+    
     // Notify lawyer if assigned
     if (populatedCase.lawyer) {
       const lawyerNotification = new Notification({
@@ -172,6 +188,21 @@ exports.createCase = async (req, res) => {
       });
       
       await lawyerNotification.save();
+      
+      // Send email notification to lawyer
+      try {
+        await emailService.sendCaseCreationNotification(
+          populatedCase.lawyer.email,
+          populatedCase.lawyer.name,
+          'lawyer',
+          populatedCase.title,
+          populatedCase.caseNumber,
+          populatedCase.client.name,
+          null // lawyerName not needed for lawyer email
+        );
+      } catch (emailError) {
+        console.error('Failed to send case creation email to lawyer:', emailError);
+      }
     }
     
     res.status(201).json({ 
@@ -331,6 +362,96 @@ exports.updateCase = async (req, res) => {
       updates, 
       { new: true, runValidators: true }
     ).populate('client lawyer', 'name email role');
+    
+    // Send email notifications for case updates
+    const emailService = require('../utils/emailService');
+    const updatedBy = req.user.role === 'lawyer' ? updated.lawyer?.name || req.user.name : updated.client?.name || req.user.name;
+    
+    // Determine what was updated for the email message
+    let updateType = 'General Update';
+    let updateMessage = 'Your case has been updated with new information.';
+    
+    if (updates.status) {
+      updateType = 'Status Update';
+      updateMessage = `Case status has been changed to "${updates.status}".`;
+      
+      // Special handling for case resolution
+      if (updates.status === 'closed' || updates.status === 'completed') {
+        updateType = 'Case Resolution';
+        updateMessage = `Your case has been marked as ${updates.status} by your lawyer.`;
+        
+        // Send case resolution email to client if case is resolved
+        if (updated.client && updated.lawyer) {
+          try {
+            const paymentAmount = updated.agreedPricing?.amount || null;
+            const paymentDetails = updated.agreedPricing?.description || null;
+            
+            await emailService.sendCaseResolutionNotification(
+              updated.client.email,
+              updated.client.name,
+              updated.title,
+              updated.caseNumber,
+              updated.lawyer.name,
+              paymentAmount,
+              paymentDetails
+            );
+          } catch (emailError) {
+            console.error('Failed to send case resolution email:', emailError);
+          }
+        }
+      }
+    }
+    
+    if (updates.title) {
+      updateType = 'Title Update';
+      updateMessage = `Case title has been updated to "${updates.title}".`;
+    }
+    
+    if (updates.description) {
+      updateType = 'Description Update';
+      updateMessage = `Case description has been updated with new details.`;
+    }
+    
+    if (updates.lawyer && caseItem.lawyer?.toString() !== updates.lawyer) {
+      updateType = 'Lawyer Assignment';
+      updateMessage = `A new lawyer has been assigned to your case.`;
+    }
+    
+    if (updates.nextHearingDate) {
+      updateType = 'Hearing Schedule';
+      updateMessage = `Next hearing date has been scheduled for ${new Date(updates.nextHearingDate).toLocaleDateString()}.`;
+    }
+    
+    // Send update emails to both client and lawyer (if different from updater)
+    try {
+      // Email client if update was made by lawyer or admin
+      if (updated.client && req.user.id !== updated.client._id.toString()) {
+        await emailService.sendCaseUpdateNotification(
+          updated.client.email,
+          updated.client.name,
+          updated.title,
+          updated.caseNumber,
+          updateType,
+          updateMessage,
+          updatedBy
+        );
+      }
+      
+      // Email lawyer if update was made by client or admin and lawyer is assigned
+      if (updated.lawyer && req.user.id !== updated.lawyer._id.toString()) {
+        await emailService.sendCaseUpdateNotification(
+          updated.lawyer.email,
+          updated.lawyer.name,
+          updated.title,
+          updated.caseNumber,
+          updateType,
+          updateMessage,
+          updatedBy
+        );
+      }
+    } catch (emailError) {
+      console.error('Failed to send case update emails:', emailError);
+    }
     
     // Auto-create payment request if case is marked as completed/closed with agreed pricing
     if ((updates.status === 'closed' || updates.status === 'completed') && updated.lawyer && updated.agreedPricing) {
