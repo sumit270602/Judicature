@@ -232,7 +232,6 @@ const CreateCase: React.FC = () => {
           }
           // If service-based is enabled but no service selected yet, and no case type, show general recommendations
           else if (formData.useServiceBased && !formData.caseType) {
-            console.log('🔄 Making default recommendation call');
             // Auto-set a default case type to get some recommendations
             const defaultCaseType = 'other';
             response = await getLawyerRecommendations({
@@ -241,16 +240,10 @@ const CreateCase: React.FC = () => {
               priority: formData.priority
             });
           }
-          
-          console.log('📊 Raw API response:', response);
-          
+
           if (response?.data) {
-            console.log('✅ Recommendations response:', response.data);
-            console.log('👨‍💼 Lawyers found:', response.data.lawyers?.length || 0);
-            console.log('👨‍💼 Lawyers data:', response.data.lawyers);
             setRecommendations(response.data.lawyers || []);
           } else {
-            console.log('❌ No response data received');
             setRecommendations([]);
           }
         } catch (error: any) {

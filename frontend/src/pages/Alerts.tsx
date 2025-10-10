@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import Header from '../components/Header';
 import { Button } from '@/components/ui/button';
@@ -9,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 import { 
   Bell, 
   AlertTriangle, 
@@ -265,7 +265,6 @@ const Alerts = () => {
 
   const handleMarkAsRead = (alertIds: number[]) => {
     // Mark selected alerts as read
-    console.log('Marking as read:', alertIds);
   };
 
   const filteredAlerts = alerts.filter(alert => {

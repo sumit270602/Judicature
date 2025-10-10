@@ -1,3 +1,4 @@
+
 const User = require('../models/User');
 const { updateLawyerVector } = require('./recommendationController');
 
@@ -250,26 +251,36 @@ exports.updateLawyerProfile = async (req, res) => {
 // Get user profile
 exports.getProfile = async (req, res) => {
   try {
-    console.log('🔍 Getting profile for user ID:', req.user?.id);
+    
+    if (!req.user?.id) {
+      return res.status(401).json({ 
+        success: false,
+        message: 'No user ID in token' 
+      });
+    }
+
     const user = await User.findById(req.user.id).select('-password');
     if (!user) {
-      console.log('❌ User not found for ID:', req.user.id);
+      
+      // Try to find user by different means for debugging
+      const allUsers = await User.find({}, 'name email _id').limit(5);
+      
       return res.status(404).json({ 
         success: false,
         message: 'User not found' 
       });
     }
 
-    console.log('✅ Profile found for user:', user.name, '|', user.email);
     res.json({
       success: true,
       user
     });
   } catch (error) {
     console.error('❌ Error fetching user profile:', error);
+    console.error('❌ Error details:', error.message);
     res.status(500).json({ 
       success: false,
-      message: 'Server error' 
+      message: 'Server error: ' + error.message
     });
   }
 };

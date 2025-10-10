@@ -1,3 +1,4 @@
+
 class EmbeddingService {
     constructor() {
         this.pipeline = null;
@@ -6,12 +7,10 @@ class EmbeddingService {
 
     async init() {
         if (!this.pipeline) {
-            console.log('Loading Hugging Face embedding model...');
             const { pipeline, util } = await import('@xenova/transformers');
             
             this.pipeline = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L12-v2');
             this.util = util; // Access to built-in utilities
-            console.log('✅ Embedding model loaded');
         }
     }
 

@@ -1,3 +1,4 @@
+
 const mongoose = require('mongoose');
 
 // Enhanced Rate Card Schema for Indian Legal Services with compliance

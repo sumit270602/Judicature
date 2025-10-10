@@ -1,3 +1,4 @@
+
 const User = require('../models/User');
 const { initializeStripe, stripeConfig } = require('../config/stripe');
 const { validationResult } = require('express-validator');
@@ -369,7 +370,6 @@ class StripeConnectController {
           stripeAccount: lawyer.stripeAccountId
         });
       } catch (balanceError) {
-        console.log('Could not retrieve balance:', balanceError.message);
       }
 
       res.json({

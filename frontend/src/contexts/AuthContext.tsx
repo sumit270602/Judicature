@@ -124,9 +124,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('redirectFeature');
     setToken(null);
     setUser(null);
     toast({ title: 'Signed Out', description: 'You have been successfully signed out.' });
+    
+    // Clear browser history and redirect to landing page
+    window.history.replaceState(null, '', '/');
+    window.location.href = '/';
   };
 
   const value = {

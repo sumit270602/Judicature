@@ -1,3 +1,4 @@
+
 // Load environment variables FIRST before any other requires
 const dotenv = require('dotenv');
 dotenv.config();
@@ -51,13 +52,12 @@ app.use('/api/webhook/stripe', express.raw({ type: 'application/json' }));
 app.use(express.json());
 app.use('/api', apiRoutes);
 
-
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI, {
   
 })
   .then(() => {
-    console.log('MongoDB connected');
+    console.log('✅ Connected to MongoDB successfully');
     // Initialize notification service after database connection
     notificationService.initialize();
   })
@@ -66,9 +66,10 @@ mongoose.connect(process.env.MONGO_URI, {
 // Initialize ChromaDB connection
 chromaService.connect()
   .then(() => {
-    console.log('ChromaDB connected for recommendations');
+    console.log('✅ ChromaDB connection initialized');
     // Initialize lawyer vectors after ChromaDB connection with Hugging Face embeddings
     setTimeout(() => {
+      console.log('🔄 Starting lawyer vector initialization...');
       initializeLawyerVectors();
     }, 3000); // Increased timeout to allow model loading
   })
@@ -78,8 +79,6 @@ chromaService.connect()
 app.get('/', (req, res) => {
   res.send('Judicature Backend API is running');
 });
-
-
 
 const server = http.createServer(app);
 const io = socketio(server, {
@@ -102,7 +101,6 @@ io.use((socket, next) => {
 });
 
 io.on('connection', (socket) => {
-  console.log(`User ${socket.user.id} connected`);
   
   // Join user's personal room for direct messages
   socket.join(`user_${socket.user.id}`);
@@ -110,7 +108,6 @@ io.on('connection', (socket) => {
   // Join case-based rooms (existing functionality)
   socket.on('join', ({ caseId }) => {
     socket.join(`case_${caseId}`);
-    console.log(`User ${socket.user.id} joined case room: ${caseId}`);
   });
 
   // Handle DIRECT one-to-one messages
@@ -194,13 +191,10 @@ io.on('connection', (socket) => {
 
   // Handle user disconnect
   socket.on('disconnect', () => {
-    console.log(`User ${socket.user.id} disconnected`);
   });
 });
 
 const PORT = process.env.PORT || 5000;
 
-
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
 }); 

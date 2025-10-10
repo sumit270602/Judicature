@@ -14,7 +14,7 @@ const ResetPassword = () => {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { login } = useAuth();
+  const { signIn, signInWithOAuth } = useAuth();
 
   const [formData, setFormData] = useState({
     password: '',
@@ -104,7 +104,7 @@ const ResetPassword = () => {
         // Auto-login the user with the new token
         if (data.token && data.user) {
           localStorage.setItem('token', data.token);
-          login(data.user, data.token);
+          signInWithOAuth(data.user, data.token);
         }
 
         // Redirect after a short delay

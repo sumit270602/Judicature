@@ -1,3 +1,4 @@
+
 const User = require('../models/User');
 
 // Middleware to check if lawyer is verified before allowing certain actions

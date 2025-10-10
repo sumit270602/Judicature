@@ -1,3 +1,4 @@
+
 const Document = require('../models/Document');
 const Case = require('../models/Case');
 const multer = require('multer');
@@ -38,7 +39,6 @@ const uploadVerificationDoc = async (req, res) => {
     } catch (saveError) {
       // Handle duplicate key error by generating a new unique filename
       if (saveError.code === 11000 && saveError.keyPattern && saveError.keyPattern.fileName) {
-        console.log('Duplicate filename detected, generating new unique filename...');
         const newTimestamp = Date.now();
         const randomString = Math.random().toString(36).substring(2, 12);
         document.fileName = `${req.user.id}_${documentType}_${newTimestamp}_${randomString}`;
@@ -110,7 +110,6 @@ const uploadCaseDoc = async (req, res) => {
     } catch (saveError) {
       // Handle duplicate key error by generating a new unique filename
       if (saveError.code === 11000 && saveError.keyPattern && saveError.keyPattern.fileName) {
-        console.log('Duplicate filename detected, generating new unique filename...');
         const newTimestamp = Date.now();
         const randomString = Math.random().toString(36).substring(2, 12);
         document.fileName = `case_${caseId}_${req.user.id}_${newTimestamp}_${randomString}`;
@@ -212,16 +211,9 @@ const downloadDoc = async (req, res) => {
     const { documentId } = req.params;
     const document = await Document.findById(documentId).populate('relatedCase');
 
-    console.log('Download request - documentId:', documentId);
-    console.log('Document found:', !!document);
-    console.log('User ID:', req.user.id);
-    console.log('User role:', req.user.role);
-
     if (!document) {
       return res.status(404).json({ message: 'Document not found' });
     }
-
-    
 
     // Check permission - temporarily allow document uploader to download their own uploads
     let hasPermission = false;
@@ -229,36 +221,27 @@ const downloadDoc = async (req, res) => {
     // Allow admin to download anything
     if (req.user.role === 'admin') {
       hasPermission = true;
-      console.log('Admin access granted');
     }
     // Allow user to download their own uploads
     else if (document.uploadedBy.toString() === req.user.id) {
       hasPermission = true;
-      console.log('Uploader access granted');
     }
     // For verification docs
     else if (document.isVerificationDoc) {
       hasPermission = false;
-      console.log('Verification doc - access denied (not uploader or admin)');
     } 
     // For case docs, check case permissions
     else {
       if (!document.relatedCase) {
-        console.log('No related case found for document');
         return res.status(403).json({ message: 'Document has no related case' });
       }
-      
-      console.log('Related case client:', document.relatedCase.client);
-      console.log('Related case lawyer:', document.relatedCase.lawyer);
-      
+
       hasPermission = document.relatedCase.client.toString() === req.user.id ||
         (document.relatedCase.lawyer && document.relatedCase.lawyer.toString() === req.user.id);
       
-      console.log('Case doc permission check:', hasPermission);
     }
 
     if (!hasPermission) {
-      console.log('Access denied - permission check failed');
       return res.status(403).json({ message: 'Access denied' });
     }
 

@@ -1,3 +1,4 @@
+
 const nodemailer = require('nodemailer');
 
 class EmailService {
@@ -10,8 +11,6 @@ class EmailService {
     try {
       // Check for required email configuration
       if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-        console.warn('Email service not configured. Required: EMAIL_USER, EMAIL_PASS');
-        console.warn('Email notifications will be disabled.');
         return;
       }
 
@@ -32,7 +31,6 @@ class EmailService {
         // Use service configuration
         emailConfig.service = process.env.EMAIL_SERVICE;
       } else {
-        console.warn('Email configuration incomplete. Provide either EMAIL_HOST+EMAIL_PORT or EMAIL_SERVICE');
         return;
       }
 
@@ -49,7 +47,6 @@ class EmailService {
           console.error('Email service configuration error:', error);
           this.transporter = null; // Disable if connection fails
         } else {
-          console.log('Email service ready');
         }
       });
     } catch (error) {
@@ -60,7 +57,6 @@ class EmailService {
 
   async sendEmail(to, subject, html, text = null) {
     if (!this.transporter) {
-      console.warn('Email service not available');
       return { success: false, error: 'Email service not configured' };
     }
 
@@ -74,7 +70,6 @@ class EmailService {
       };
 
       const result = await this.transporter.sendMail(mailOptions);
-      console.log('Email sent successfully:', result.messageId);
       return { success: true, messageId: result.messageId };
     } catch (error) {
       console.error('Email sending error:', error);

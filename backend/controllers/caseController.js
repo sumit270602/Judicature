@@ -1,3 +1,4 @@
+
 const Case = require('../models/Case');
 const Counter = require('../models/Counter');
 const { updateLawyerVector } = require('./recommendationController');
@@ -643,15 +644,12 @@ exports.createAutoPaymentRequest = async (caseItem) => {
 
     // Validate required data
     if (!caseItem.lawyer || !caseItem.client) {
-      console.log(`Case ${caseItem.caseNumber}: Missing lawyer or client, skipping auto payment request`);
       return;
     }
 
     // Determine payment amount - use agreed pricing if available, otherwise default to 0
     const paymentAmount = caseItem.agreedPricing?.amount || 0;
     const currency = caseItem.agreedPricing?.currency || 'INR';
-    
-    console.log(`Case ${caseItem.caseNumber}: Creating payment request with amount: ${paymentAmount} ${currency}`);
 
     // Check if payment request already exists for this case
     const existingRequest = await PaymentRequest.findOne({
@@ -660,7 +658,6 @@ exports.createAutoPaymentRequest = async (caseItem) => {
     });
 
     if (existingRequest) {
-      console.log(`Case ${caseItem.caseNumber}: Payment request already exists, skipping`);
       return;
     }
 
@@ -767,7 +764,6 @@ exports.createAutoPaymentRequest = async (caseItem) => {
       // Don't fail the process if email fails
     }
 
-    console.log(`✅ Auto payment request created for case ${caseItem.caseNumber}: ${paymentRequest.requestId}`);
     return paymentRequest;
 
   } catch (error) {
@@ -932,7 +928,6 @@ exports.uploadWorkProof = async (req, res) => {
     } catch (saveError) {
       // Handle duplicate key error by generating a new unique filename
       if (saveError.code === 11000 && saveError.keyPattern && saveError.keyPattern.fileName) {
-        console.log('Duplicate filename detected, generating new unique filename...');
         const newTimestamp = Date.now();
         const newRandomString = Math.random().toString(36).substring(2, 12);
         const newFileExtension = req.file.originalname.split('.').pop();

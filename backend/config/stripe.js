@@ -1,3 +1,4 @@
+
 const Stripe = require('stripe');
 const dotenv = require('dotenv');
 
@@ -44,7 +45,6 @@ const validateStripeConfig = () => {
 const stripeHealthCheck = async (stripe) => {
   try {
     await stripe.balance.retrieve();
-    console.log('✅ Stripe connection successful');
     return true;
   } catch (error) {
     console.error('❌ Stripe health check failed:', error.message);

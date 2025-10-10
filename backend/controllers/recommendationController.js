@@ -1,3 +1,4 @@
+
 const User = require('../models/User');
 const chromaService = require('../utils/chroma');
 
@@ -6,6 +7,8 @@ const recommendLawyersForCase = async (req, res) => {
     try {
         const { caseType, caseDescription } = req.body;
         
+        console.log('Case recommendation request:', { caseType, caseDescription });
+        
         if (!caseType) {
             return res.status(400).json({ error: 'Case type is required' });
         }
@@ -13,11 +16,15 @@ const recommendLawyersForCase = async (req, res) => {
         // Create case description for ChromaDB
         const caseText = `${caseType} ${caseDescription || ''}`.trim();
         
+        console.log('Searching ChromaDB for lawyers with case text:', caseText);
         // ChromaDB handles embedding and similarity search automatically
         const recommendations = await chromaService.findLawyersForCase(caseText, 10);
         
+        console.log('ChromaDB returned', recommendations.length, 'recommendations');
+        
         // If ChromaDB returns no results, fall back to simple database query
         if (recommendations.length === 0) {
+            console.log('No ChromaDB results found, falling back to MongoDB search');
             // Simple fallback: find verified lawyers who have related practice areas
             const practiceAreaMap = {
                 'civil': ['civil', 'property', 'other'],
@@ -179,6 +186,7 @@ const getSimilarLawyers = async (req, res) => {
 // Update lawyer vector when profile changes
 const updateLawyerVector = async (lawyerId, lawyerData) => {
     try {
+        console.log('Updating lawyer vector for:', lawyerId);
         // ChromaDB handles embeddings automatically, just store lawyer data
         const success = await chromaService.storeLawyerVector(lawyerId, {
             specializations: lawyerData.specializations || [],
@@ -188,7 +196,9 @@ const updateLawyerVector = async (lawyerId, lawyerData) => {
         });
         
         if (!success) {
-            console.warn(`Failed to update vector for lawyer ${lawyerId}`);
+            console.error('Failed to update lawyer vector for:', lawyerId);
+        } else {
+            console.log('Successfully updated lawyer vector for:', lawyerId);
         }
         
     } catch (error) {
@@ -201,12 +211,11 @@ const recommendLawyersForService = async (req, res) => {
     try {
         const { serviceId, serviceCategory, serviceType, caseDescription, priority } = req.body;
         
-        console.log('🔍 Service recommendation request:', {
+        console.log('Service recommendation request:', {
             serviceId, serviceCategory, serviceType, caseDescription, priority
         });
         
         if (!serviceCategory && !serviceType && !serviceId) {
-            console.log('❌ Missing required parameters');
             return res.status(400).json({ error: 'Service category, type, or ID is required' });
         }
 
@@ -222,14 +231,10 @@ const recommendLawyersForService = async (req, res) => {
             if (serviceType) serviceQuery.serviceType = serviceType;
         }
 
-        console.log('📋 Service query:', serviceQuery);
-
         // Find lawyers who offer this service
         const services = await LegalService.find(serviceQuery)
             .populate('lawyer', '-password')
             .limit(20);
-            
-        console.log('📊 Found services:', services.length);
 
         if (services.length === 0) {
             // Fallback: find verified lawyers with related practice areas

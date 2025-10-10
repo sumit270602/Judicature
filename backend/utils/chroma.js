@@ -1,3 +1,4 @@
+
 const { ChromaClient } = require('chromadb');
 const embeddingService = require('./embeddings');
 
@@ -11,6 +12,7 @@ class ChromaVectorService {
 
     async connect() {
         try {
+            console.log('Connecting to ChromaDB at localhost:8000...');
             this.client = new ChromaClient({
                 host: "localhost",
                 port: 8000
@@ -22,7 +24,7 @@ class ChromaVectorService {
             });
             
             this.connected = true;
-            console.log('Connected to ChromaDB');
+            console.log('Successfully connected to ChromaDB and initialized lawyers collection');
         } catch (error) {
             console.error('Failed to connect to ChromaDB:', error);
             this.connected = false;
@@ -32,7 +34,6 @@ class ChromaVectorService {
     async disconnect() {
         if (this.connected) {
             this.connected = false;
-            console.log('Disconnected from ChromaDB');
         }
     }
 
@@ -41,6 +42,7 @@ class ChromaVectorService {
         if (!this.connected) return false;
         
         try {
+            console.log('Storing lawyer vector for ID:', lawyerId);
             const document = this.buildLawyerDocument(lawyerData);
             const embedding = await embeddingService.createEmbedding(document);
             

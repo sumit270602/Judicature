@@ -1,3 +1,4 @@
+
 const Payment = require('../models/Payment');
 const Invoice = require('../models/Invoice');
 const TimeTracking = require('../models/TimeTracking');
@@ -523,8 +524,6 @@ const autoReleasePayments = async () => {
         }
       }
     }
-
-    console.log(`Auto-released ${paymentsToRelease.length} payments`);
 
   } catch (error) {
     console.error('Auto-release payments error:', error);

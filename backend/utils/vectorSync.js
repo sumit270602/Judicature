@@ -1,18 +1,21 @@
+
 const User = require('../models/User');
 const chromaService = require('./chroma');
 
 // Initialize ChromaDB with existing lawyer data from MongoDB
 const initializeLawyerVectors = async () => {
     try {
-        console.log('Initializing lawyer vectors in ChromaDB...');
+        console.log('Initializing lawyer vectors from MongoDB...');
         
         // Get all lawyers from MongoDB
         const lawyers = await User.find({ role: 'lawyer' });
         
         if (lawyers.length === 0) {
-            console.log('No lawyers found in MongoDB');
+            console.log('No lawyers found in MongoDB for vector initialization');
             return;
         }
+        
+        console.log(`Found ${lawyers.length} lawyers to initialize in ChromaDB`);
         
         let initialized = 0;
         for (const lawyer of lawyers) {
@@ -27,9 +30,7 @@ const initializeLawyerVectors = async () => {
                 
                 if (success) {
                     initialized++;
-                    console.log(`✅ Stored lawyer: ${lawyer.name}`);
                 } else {
-                    console.warn(`Failed to store lawyer: ${lawyer.name}`);
                 }
                 
             } catch (error) {
@@ -37,7 +38,6 @@ const initializeLawyerVectors = async () => {
             }
         }
         
-        console.log(`Successfully initialized ${initialized}/${lawyers.length} lawyer vectors`);
         return initialized;
         
     } catch (error) {

@@ -1,55 +1,57 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
-import StripeProvider from "@/components/StripeProvider";
-import Index from "./pages/Index";
-import Login from "./pages/Login";
-import Register from "./pages/EnhancedRegister";
-import OAuthRoleSelection from "./pages/OAuthRoleSelection";
-import OAuthCallback from "./pages/OAuthCallback";
-import Features from "./pages/Features";
-import About from "./pages/About";
-import Testimonials from "./pages/Testimonials";
-import Contact from "./pages/Contact";
-import Pricing from "./pages/Pricing";
-import CaseAnalysis from "./pages/CaseAnalysis";
-import ClientManagement from "./pages/ClientManagement";
-import Communication from "./pages/Communication";
-import Scheduling from "./pages/Scheduling";
-import Alerts from "./pages/Alerts";
-import Security from "./pages/Security";
-import Search from "./pages/Search";
-import TimeTracking from "./pages/TimeTracking";
-import BillingManagement from "./pages/BillingManagement";
-import PaymentHistory from "./pages/PaymentHistory";
-import NotFound from "./pages/NotFound";
-import ClientDashboard from "./pages/ClientDashboard";
-import LawyerDashboard from "./pages/LawyerDashboard";
-import AdminDashboard from "./pages/AdminDashboard";
-import ProtectedAdminRoute from "./components/ProtectedAdminRoute";
-import MessagingDemo from "./pages/MessagingDemo";
-import AuthSuccess from "./pages/AuthSuccess";
-import CreateCase from "./pages/CreateCase";
-import CaseDetails from "./pages/CaseDetails";
-import CaseDetailsView from "./pages/CaseDetailsView";
-import VerificationDetailsPage from "./pages/VerificationDetailsPage";
-import AdminCaseDetailsPage from "./pages/AdminCaseDetailsPage";
-import Services from "./pages/Services";
-import BillingPage from "./pages/BillingPage";
-import PaymentDetailsPage from "./pages/PaymentDetailsPage";
-import LawyerRateManagement from "./pages/LawyerRateManagement";
-import WorkItemManagement from "./pages/WorkItemManagement";
-import EnhancedBillingDashboard from "./pages/EnhancedBillingDashboard";
-import OrdersPage from "./pages/OrdersPage";
-import PaymentSuccess from "./pages/PaymentSuccess";
-import PaymentCancel from "./pages/PaymentCancel";
-import LawyerClientDetails from "./pages/LawyerClientDetails";
-import UserDetailsPage from "./pages/UserDetailsPage";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
+import { Toaster } from '@/components/ui/toaster';
+import { Toaster as Sonner } from '@/components/ui/sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from '@/contexts/AuthContext';
+import StripeProvider from '@/components/StripeProvider';
+import Index from './pages/Index';
+import Login from './pages/Login';
+import Register from './pages/EnhancedRegister';
+import OAuthRoleSelection from './pages/OAuthRoleSelection';
+import OAuthCallback from './pages/OAuthCallback';
+import Features from './pages/Features';
+import About from './pages/About';
+import Testimonials from './pages/Testimonials';
+import Contact from './pages/Contact';
+import Pricing from './pages/Pricing';
+import CaseAnalysis from './pages/CaseAnalysis';
+import ClientManagement from './pages/ClientManagement';
+import Communication from './pages/Communication';
+import Scheduling from './pages/Scheduling';
+import Alerts from './pages/Alerts';
+import Security from './pages/Security';
+import Search from './pages/Search';
+import TimeTracking from './pages/TimeTracking';
+import BillingManagement from './pages/BillingManagement';
+import PaymentHistory from './pages/PaymentHistory';
+import NotFound from './pages/NotFound';
+import ClientDashboard from './pages/ClientDashboard';
+import LawyerDashboard from './pages/LawyerDashboard';
+import AdminDashboard from './pages/AdminDashboard';
+import ProtectedAdminRoute from './components/ProtectedAdminRoute';
+import RoleBasedRoute from './components/RoleBasedRoute';
+import AuthGuard from './components/AuthGuard';
+import MessagingDemo from './pages/MessagingDemo';
+import AuthSuccess from './pages/AuthSuccess';
+import CreateCase from './pages/CreateCase';
+import CaseDetails from './pages/CaseDetails';
+import CaseDetailsView from './pages/CaseDetailsView';
+import VerificationDetailsPage from './pages/VerificationDetailsPage';
+import AdminCaseDetailsPage from './pages/AdminCaseDetailsPage';
+import Services from './pages/Services';
+import BillingPage from './pages/BillingPage';
+import PaymentDetailsPage from './pages/PaymentDetailsPage';
+import LawyerRateManagement from './pages/LawyerRateManagement';
+import WorkItemManagement from './pages/WorkItemManagement';
+import EnhancedBillingDashboard from './pages/EnhancedBillingDashboard';
+import OrdersPage from './pages/OrdersPage';
+import PaymentSuccess from './pages/PaymentSuccess';
+import PaymentCancel from './pages/PaymentCancel';
+import LawyerClientDetails from './pages/LawyerClientDetails';
+import UserDetailsPage from './pages/UserDetailsPage';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 const queryClient = new QueryClient();
 
@@ -84,48 +86,136 @@ const App = () => (
             <Route path="/time-tracking" element={<TimeTracking />} />
             <Route path="/billing-management" element={<BillingManagement />} />
             <Route path="/payment-history" element={<PaymentHistory />} />
-            <Route path="/billing" element={<BillingPage />} />
-            <Route path="/payment/:paymentId" element={<PaymentDetailsPage />} />
-            <Route path="/dashboard/client" element={<ClientDashboard />} />
-            <Route path="/dashboard/lawyer" element={<LawyerDashboard />} />
+            <Route path="/billing" element={
+              <AuthGuard>
+                <RoleBasedRoute allowedRoles={['client', 'lawyer', 'admin']}>
+                  <BillingPage />
+                </RoleBasedRoute>
+              </AuthGuard>
+            } />
+            <Route path="/payment/:paymentId" element={
+              <AuthGuard>
+                <RoleBasedRoute allowedRoles={['client', 'lawyer', 'admin']}>
+                  <PaymentDetailsPage />
+                </RoleBasedRoute>
+              </AuthGuard>
+            } />
+            <Route path="/dashboard/client" element={
+              <AuthGuard>
+                <RoleBasedRoute allowedRoles={['client']}>
+                  <ClientDashboard />
+                </RoleBasedRoute>
+              </AuthGuard>
+            } />
+            <Route path="/dashboard/lawyer" element={
+              <AuthGuard>
+                <RoleBasedRoute allowedRoles={['lawyer']}>
+                  <LawyerDashboard />
+                </RoleBasedRoute>
+              </AuthGuard>
+            } />
             <Route path="/dashboard/admin" element={
-              <ProtectedAdminRoute>
-                <AdminDashboard />
-              </ProtectedAdminRoute>
+              <AuthGuard>
+                <RoleBasedRoute allowedRoles={['admin']}>
+                  <AdminDashboard />
+                </RoleBasedRoute>
+              </AuthGuard>
             } />
             <Route path="/admin" element={
-              <ProtectedAdminRoute>
-                <AdminDashboard />
-              </ProtectedAdminRoute>
+              <AuthGuard>
+                <RoleBasedRoute allowedRoles={['admin']}>
+                  <AdminDashboard />
+                </RoleBasedRoute>
+              </AuthGuard>
             } />
             <Route path="/admin/users/:userId/details" element={
-              <ProtectedAdminRoute>
-                <UserDetailsPage />
-              </ProtectedAdminRoute>
+              <AuthGuard>
+                <RoleBasedRoute allowedRoles={['admin']}>
+                  <UserDetailsPage />
+                </RoleBasedRoute>
+              </AuthGuard>
             } />
             <Route path="/admin/verification/:userId" element={
-              <ProtectedAdminRoute>
-                <VerificationDetailsPage />
-              </ProtectedAdminRoute>
+              <AuthGuard>
+                <RoleBasedRoute allowedRoles={['admin']}>
+                  <VerificationDetailsPage />
+                </RoleBasedRoute>
+              </AuthGuard>
             } />
             <Route path="/admin/cases/:caseId" element={
-              <ProtectedAdminRoute>
-                <AdminCaseDetailsPage />
-              </ProtectedAdminRoute>
+              <AuthGuard>
+                <RoleBasedRoute allowedRoles={['admin']}>
+                  <AdminCaseDetailsPage />
+                </RoleBasedRoute>
+              </AuthGuard>
             } />
-            <Route path="/lawyer/clients/:clientId" element={<LawyerClientDetails />} />
-            <Route path="/messaging" element={<MessagingDemo />} />
+            <Route path="/lawyer/clients/:clientId" element={
+              <AuthGuard>
+                <RoleBasedRoute allowedRoles={['lawyer']}>
+                  <LawyerClientDetails />
+                </RoleBasedRoute>
+              </AuthGuard>
+            } />
+            <Route path="/messaging" element={
+              <AuthGuard>
+                <RoleBasedRoute allowedRoles={['client', 'lawyer', 'admin']}>
+                  <MessagingDemo />
+                </RoleBasedRoute>
+              </AuthGuard>
+            } />
             <Route path="/auth/success" element={<AuthSuccess />} />
-            <Route path="/create-case" element={<CreateCase />} />
-            <Route path="/case/:caseId" element={<CaseDetails />} />
-            <Route path="/case/:caseId/view" element={<CaseDetailsView />} />
+            <Route path="/create-case" element={
+              <AuthGuard>
+                <RoleBasedRoute allowedRoles={['client', 'lawyer']}>
+                  <CreateCase />
+                </RoleBasedRoute>
+              </AuthGuard>
+            } />
+            <Route path="/case/:caseId" element={
+              <AuthGuard>
+                <RoleBasedRoute allowedRoles={['client', 'lawyer', 'admin']}>
+                  <CaseDetails />
+                </RoleBasedRoute>
+              </AuthGuard>
+            } />
+            <Route path="/case/:caseId/view" element={
+              <AuthGuard>
+                <RoleBasedRoute allowedRoles={['client', 'lawyer', 'admin']}>
+                  <CaseDetailsView />
+                </RoleBasedRoute>
+              </AuthGuard>
+            } />
             <Route path="/services" element={<Services />} />
             {/* Enhanced Payment System Routes */}
-            <Route path="/lawyer/rates" element={<LawyerRateManagement />} />
-            <Route path="/work-items" element={<WorkItemManagement />} />
-            <Route path="/enhanced-billing" element={<EnhancedBillingDashboard />} />
+            <Route path="/lawyer/rates" element={
+              <AuthGuard>
+                <RoleBasedRoute allowedRoles={['lawyer']}>
+                  <LawyerRateManagement />
+                </RoleBasedRoute>
+              </AuthGuard>
+            } />
+            <Route path="/work-items" element={
+              <AuthGuard>
+                <RoleBasedRoute allowedRoles={['client', 'lawyer']}>
+                  <WorkItemManagement />
+                </RoleBasedRoute>
+              </AuthGuard>
+            } />
+            <Route path="/enhanced-billing" element={
+              <AuthGuard>
+                <RoleBasedRoute allowedRoles={['client', 'lawyer', 'admin']}>
+                  <EnhancedBillingDashboard />
+                </RoleBasedRoute>
+              </AuthGuard>
+            } />
             {/* Stripe Connect Escrow Routes */}
-            <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/orders" element={
+              <AuthGuard>
+                <RoleBasedRoute allowedRoles={['client', 'lawyer', 'admin']}>
+                  <OrdersPage />
+                </RoleBasedRoute>
+              </AuthGuard>
+            } />
             {/* Payment Result Routes */}
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<PaymentCancel />} />

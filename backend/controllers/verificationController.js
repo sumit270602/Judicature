@@ -1,3 +1,4 @@
+
 const User = require('../models/User');
 
 // Get verification status
@@ -172,7 +173,6 @@ const rejectVerification = async (req, res) => {
     }
 
     const { lawyerId } = req.params;
-
 
     const lawyer = await User.findById(lawyerId);
     if (!lawyer || lawyer.role !== 'lawyer') {

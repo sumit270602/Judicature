@@ -1,3 +1,4 @@
+
 const LegalService = require('../models/LegalService');
 const User = require('../models/User');
 

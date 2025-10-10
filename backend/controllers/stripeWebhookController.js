@@ -1,3 +1,4 @@
+
 const Order = require('../models/Order');
 const Payout = require('../models/Payout');
 const User = require('../models/User');
@@ -39,8 +40,6 @@ class StripeWebhookController {
         console.error('Webhook signature verification failed:', err.message);
         return res.status(400).send(`Webhook Error: ${err.message}`);
       }
-
-      console.log(`Received webhook event: ${event.type}`);
 
       // Handle the event
       switch (event.type) {
@@ -85,7 +84,6 @@ class StripeWebhookController {
           break;
         
         default:
-          console.log(`Unhandled event type: ${event.type}`);
       }
 
       res.json({ received: true });
@@ -112,9 +110,7 @@ class StripeWebhookController {
         order.status = 'funded';
         order.fundedAt = new Date();
         await order.save();
-        
-        console.log(`Order ${order.id} funded successfully`);
-        
+
         // TODO: Send notification to lawyer about funded order
         // await notificationService.sendOrderFunded(order);
       }
@@ -143,9 +139,7 @@ class StripeWebhookController {
 
       order.status = 'cancelled';
       await order.save();
-      
-      console.log(`Order ${order.id} payment failed`);
-      
+
       // TODO: Send notification to client about failed payment
       // await notificationService.sendPaymentFailed(order);
 
@@ -163,7 +157,6 @@ class StripeWebhookController {
         payout.status = 'in_transit';
         await payout.save();
         
-        console.log(`Payout ${payout._id} status updated to in_transit`);
       }
 
     } catch (error) {
@@ -181,9 +174,7 @@ class StripeWebhookController {
         payout.status = 'paid';
         payout.paidAt = new Date();
         await payout.save();
-        
-        console.log(`Payout ${payout._id} completed successfully`);
-        
+
         // TODO: Send notification to lawyer about payout completion
         // await notificationService.sendPayoutCompleted(payout);
       }
@@ -205,9 +196,7 @@ class StripeWebhookController {
         payout.failureCode = transfer.failure_code;
         payout.failureMessage = transfer.failure_message;
         await payout.save();
-        
-        console.log(`Payout ${payout._id} failed: ${transfer.failure_message}`);
-        
+
         // TODO: Send notification to admin about failed payout
         // await notificationService.sendPayoutFailed(payout);
       }
@@ -237,9 +226,7 @@ class StripeWebhookController {
         order.disputeCreatedAt = new Date();
         order.disputeReason = 'Stripe chargeback dispute';
         await order.save();
-        
-        console.log(`Order ${order.id} marked as disputed due to chargeback`);
-        
+
         // TODO: Send notification to admin about dispute
         // await notificationService.sendDisputeCreated(order);
       }
@@ -285,7 +272,6 @@ class StripeWebhookController {
             order.completedAt = new Date();
             await order.save();
             
-            console.log(`Order ${order.id} completed after winning dispute`);
           } catch (transferError) {
             console.error('Error creating transfer after dispute won:', transferError);
           }
@@ -296,7 +282,6 @@ class StripeWebhookController {
         order.refundedAt = new Date();
         await order.save();
         
-        console.log(`Order ${order.id} refunded after losing dispute`);
       }
       
       // TODO: Send notification about dispute resolution
@@ -313,7 +298,6 @@ class StripeWebhookController {
       const lawyer = await User.findOne({ stripeAccountId: account.id });
       
       if (!lawyer) {
-        console.log(`No lawyer found for account: ${account.id}`);
         return;
       }
 
@@ -324,9 +308,7 @@ class StripeWebhookController {
       if (isOnboardingComplete && !lawyer.stripeOnboardingComplete) {
         lawyer.stripeOnboardingComplete = true;
         await lawyer.save();
-        
-        console.log(`Lawyer ${lawyer._id} onboarding completed`);
-        
+
         // TODO: Send notification about completed onboarding
         // await notificationService.sendOnboardingCompleted(lawyer);
       }
@@ -339,7 +321,6 @@ class StripeWebhookController {
   // Handle successful checkout completion
   async handleCheckoutSessionCompleted(session) {
     try {
-      console.log('Processing checkout.session.completed:', session.id);
       
       // Find the payment request by Stripe session ID
       const paymentRequest = await PaymentRequest.findOne({ 
@@ -367,7 +348,6 @@ class StripeWebhookController {
         { upsert: true }
       );
 
-      console.log(`Payment completed for request: ${paymentRequest.requestId}`);
     } catch (error) {
       console.error('Error handling checkout session completed:', error);
     }
@@ -376,7 +356,6 @@ class StripeWebhookController {
   // Handle failed checkout
   async handleCheckoutSessionExpired(session) {
     try {
-      console.log('Processing checkout.session.expired:', session.id);
       
       // Find the payment request by Stripe session ID
       const paymentRequest = await PaymentRequest.findOne({ 
@@ -393,7 +372,6 @@ class StripeWebhookController {
       paymentRequest.stripeSessionId = null;
       await paymentRequest.save();
 
-      console.log(`Payment session expired for request: ${paymentRequest.requestId}`);
     } catch (error) {
       console.error('Error handling checkout session expired:', error);
     }

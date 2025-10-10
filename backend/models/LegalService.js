@@ -1,3 +1,4 @@
+
 const mongoose = require('mongoose');
 
 // Legal Service Schema for service-based pricing

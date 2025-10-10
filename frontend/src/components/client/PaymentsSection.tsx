@@ -77,15 +77,11 @@ const PaymentsSection: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      console.log('Fetching payment data...');
       const [requestsResponse, paymentsResponse] = await Promise.all([
         api.get('/payment-requests?populate=case'),
         api.get('/payment-requests/client/payments')
       ]);
-      
-      console.log('Payment requests response:', requestsResponse.data);
-      console.log('Payments response:', paymentsResponse.data);
-      
+
       setPaymentRequests(requestsResponse.data.data.requests || []);
       setPayments(paymentsResponse.data.payments || []);
     } catch (error) {

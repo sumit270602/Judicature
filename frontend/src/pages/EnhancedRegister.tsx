@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +12,6 @@ import { Scale, Eye, EyeOff, User, Briefcase, Award, FileText, ArrowLeft, ArrowR
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect } from 'react';
 import { LawyerProfile } from '@/types/auth';
 import OAuthProviders from '@/components/auth/OAuthProviders';
 import Header from '@/components/Header';

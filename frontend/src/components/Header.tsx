@@ -46,15 +46,50 @@ const Header = () => {
     return '/';
   };
 
+  // Legal service categories for authenticated users
+  const legalServices = [
+    {
+      category: "Personal & Family Law",
+      services: [
+        { name: "Divorce", href: "/services?category=family&type=divorce" },
+        { name: "Family Dispute", href: "/services?category=family&type=dispute" },
+        { name: "Child Custody", href: "/services?category=family&type=custody" },
+        { name: "Adoption", href: "/services?category=family&type=adoption" },
+        { name: "Property Settlement", href: "/services?category=family&type=property" }
+      ]
+    },
+    {
+      category: "Corporate Law",
+      services: [
+        { name: "Business Registration", href: "/services?category=corporate&type=registration" },
+        { name: "Contract Review", href: "/services?category=corporate&type=contract" },
+        { name: "Compliance", href: "/services?category=corporate&type=compliance" },
+        { name: "Mergers & Acquisitions", href: "/services?category=corporate&type=ma" }
+      ]
+    },
+    {
+      category: "Criminal Law",
+      services: [
+        { name: "Criminal Defense", href: "/services?category=criminal&type=defense" },
+        { name: "Bail Applications", href: "/services?category=criminal&type=bail" },
+        { name: "Appeals", href: "/services?category=criminal&type=appeals" }
+      ]
+    },
+    {
+      category: "Civil Law",
+      services: [
+        { name: "Property Disputes", href: "/services?category=civil&type=property" },
+        { name: "Consumer Protection", href: "/services?category=civil&type=consumer" },
+        { name: "Tort Claims", href: "/services?category=civil&type=tort" }
+      ]
+    }
+  ];
+
   // Dynamic navigation based on authentication status
   const navigation = user ? [
-    { name: 'Home', href: '/' },
     { name: 'Dashboard', href: getDashboardPath() },
-    { name: 'Services', href: '/services' },
-    { name: 'Features', href: '/features' },
     { name: 'About', href: '/about' },
     { name: 'Testimonials', href: '/testimonials' },
-    { name: 'Pricing', href: '/pricing' },
     { name: 'Contact', href: '/contact' },
   ] : [
     { name: 'Home', href: '/' },
@@ -109,6 +144,40 @@ const Header = () => {
                   </NavigationMenuLink>
                 </NavigationMenuItem>
               ))}
+              
+              {/* Services Dropdown for Authenticated Users */}
+              {user && (
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger className="h-10 px-4 py-2 text-sm font-medium">
+                    Services
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <div className="grid gap-3 p-6 w-[800px] grid-cols-2">
+                      {legalServices.map((category) => (
+                        <div key={category.category} className="space-y-2">
+                          <h4 className="text-sm font-semibold text-legal-navy border-b border-gray-200 pb-1">
+                            {category.category}
+                          </h4>
+                          <ul className="space-y-1">
+                            {category.services.map((service) => (
+                              <li key={service.name}>
+                                <NavigationMenuLink asChild>
+                                  <Link
+                                    to={service.href}
+                                    className="block select-none space-y-1 rounded-md p-2 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground text-sm"
+                                  >
+                                    {service.name}
+                                  </Link>
+                                </NavigationMenuLink>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+              )}
             </NavigationMenuList>
           </NavigationMenu>
 
@@ -164,6 +233,35 @@ const Header = () => {
                     {item.name}
                   </Link>
                 ))}
+                
+                {/* Mobile Services for Authenticated Users */}
+                {user && (
+                  <div className="space-y-4">
+                    <div className="text-lg font-medium text-legal-navy border-b border-gray-200 pb-2">
+                      Services
+                    </div>
+                    {legalServices.map((category) => (
+                      <div key={category.category} className="space-y-2">
+                        <h4 className="text-sm font-semibold text-gray-700">
+                          {category.category}
+                        </h4>
+                        <ul className="space-y-1 ml-4">
+                          {category.services.map((service) => (
+                            <li key={service.name}>
+                              <Link
+                                to={service.href}
+                                className="text-sm text-gray-600 hover:text-legal-navy transition-colors"
+                                onClick={() => setIsOpen(false)}
+                              >
+                                {service.name}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="pt-4 border-t space-y-2">
                   {user ? (
                     <>

@@ -1,3 +1,4 @@
+
 // Type declarations for Razorpay
 declare global {
   interface Window {

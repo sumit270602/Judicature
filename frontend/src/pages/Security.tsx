@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import Header from '../components/Header';
 import { Button } from '@/components/ui/button';
@@ -9,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
+
 import { 
   Shield, 
   Lock, 

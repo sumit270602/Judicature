@@ -62,14 +62,12 @@ export const useMessaging = () => {
     });
 
     newSocket.on('connect', () => {
-      console.log('Connected to chat server');
       setIsConnected(true);
       fetchConversations();
       fetchUnreadCount();
     });
 
     newSocket.on('disconnect', () => {
-      console.log('Disconnected from chat server');
       setIsConnected(false);
     });
 

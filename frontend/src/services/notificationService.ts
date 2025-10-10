@@ -1,3 +1,4 @@
+
 // Simple EventEmitter implementation for browser compatibility
 class SimpleEventEmitter {
   private events: { [key: string]: Function[] } = {};
@@ -52,7 +53,6 @@ class NotificationService extends SimpleEventEmitter {
       this.socket = new WebSocket(wsUrl);
 
       this.socket.onopen = () => {
-        console.log('WebSocket connected for notifications');
         // Send authentication token if available
         const token = localStorage.getItem('token');
         if (token) {
@@ -75,7 +75,6 @@ class NotificationService extends SimpleEventEmitter {
       };
 
       this.socket.onclose = () => {
-        console.log('WebSocket disconnected, attempting to reconnect...');
         // Reconnect after 5 seconds
         setTimeout(() => this.initializeWebSocket(), 5000);
       };
@@ -174,7 +173,6 @@ class NotificationService extends SimpleEventEmitter {
 
   // NOTE: Only use this for testing purposes - notifications should come from real events
   simulateNotifications() {
-    console.warn('simulateNotifications called - this should only be used for testing');
     return; // Disabled - notifications should only come from real events
   }
 

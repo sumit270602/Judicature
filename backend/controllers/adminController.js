@@ -1,3 +1,4 @@
+
 const User = require('../models/User');
 const Case = require('../models/Case');
 const Payment = require('../models/Payment');
@@ -419,7 +420,6 @@ exports.toggleUserStatus = async (req, res) => {
     }
 
     // Log admin action (could be replaced with proper audit logging system)
-    console.log(`Admin ${req.user.id} ${active ? 'activated' : 'deactivated'} user ${userId} at ${new Date()}`);
 
     res.json({ message: `User ${active ? 'activated' : 'deactivated'} successfully`, user });
   } catch (error) {

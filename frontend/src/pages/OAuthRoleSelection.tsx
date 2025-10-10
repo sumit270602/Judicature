@@ -63,7 +63,6 @@ const OAuthRoleSelection = () => {
       const payload = JSON.parse(atob(token.split('.')[1]));
       if (payload.temp && payload.role === 'pending') {
         // Valid temporary token
-        console.log('Valid temporary OAuth token');
       } else {
         throw new Error('Invalid token structure');
       }

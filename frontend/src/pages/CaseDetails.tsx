@@ -470,8 +470,6 @@ const CaseDetails: React.FC = () => {
     }
   };
 
-
-
   if (loading) {
     return (
       <>

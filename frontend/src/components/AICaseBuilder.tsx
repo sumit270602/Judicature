@@ -404,7 +404,6 @@ const AICaseBuilder: React.FC = () => {
   const { toast } = useToast();
 
   const handleCaseSubmit = (caseData: CaseData) => {
-    console.log('Case submitted:', caseData);
     toast({
       title: "Case Filed Successfully",
       description: "Your AI-generated case has been submitted for review.",

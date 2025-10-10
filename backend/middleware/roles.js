@@ -1,3 +1,4 @@
+
 module.exports = (...allowedRoles) => (req, res, next) => {
   // Flatten the allowedRoles array in case it's nested
   const flattenedRoles = allowedRoles.flat();

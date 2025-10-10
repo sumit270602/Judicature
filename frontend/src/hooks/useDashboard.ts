@@ -298,7 +298,6 @@ export const useRealTimeUpdates = (userId: string, userRole: 'lawyer' | 'client'
     const ws = new WebSocket(`${wsUrl}?userId=${userId}&role=${userRole}`);
     
     ws.onopen = () => {
-      console.log('WebSocket connected for dashboard updates');
       setSocket(ws);
     };
 

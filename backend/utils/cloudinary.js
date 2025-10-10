@@ -1,3 +1,4 @@
+
 const cloudinary = require('cloudinary').v2;
 const path = require('path');
 const fs = require('fs');
@@ -20,7 +21,6 @@ const isCloudinaryConfigured = () => {
 // Mock uploader for development when Cloudinary is not configured
 const mockUploader = {
   upload: async (filePath, options = {}) => {
-    console.log('Mock Cloudinary upload:', filePath);
     
     // Generate a mock response
     const filename = path.basename(filePath);
@@ -42,7 +42,6 @@ const mockUploader = {
   },
   
   destroy: async (publicId, options = {}) => {
-    console.log('Mock Cloudinary delete:', publicId);
     return { result: 'ok' };
   }
 };

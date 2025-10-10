@@ -1,3 +1,4 @@
+
 const Notification = require('../models/Notification');
 
 // Get user notifications

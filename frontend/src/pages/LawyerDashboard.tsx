@@ -1100,7 +1100,6 @@ const LegalResearch = () => {
             </CardContent>
           </Card>
 
-
         </div>
       </div>
     </div>
@@ -1919,8 +1918,6 @@ const ClientList = ({ clients }: { clients: Client[] }) => {
     </Card>
   );
 };
-
-
 
 // Enhanced Real-time Document Management & Vault Component
 const DocumentManagement = () => {

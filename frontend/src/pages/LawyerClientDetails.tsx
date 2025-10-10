@@ -152,10 +152,6 @@ const LawyerClientDetails: React.FC = () => {
       setLoading(true);
       const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       const apiUrl = `${baseUrl}/dashboard/lawyer/clients/${clientId}`;
-      console.log('Environment VITE_API_URL:', import.meta.env.VITE_API_URL);
-      console.log('Using base URL:', baseUrl);
-      console.log('Fetching client details from:', apiUrl);
-      console.log('Client ID:', clientId);
       
       const response = await fetch(apiUrl, {
         headers: {
@@ -163,12 +159,8 @@ const LawyerClientDetails: React.FC = () => {
         }
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
-
       if (response.ok) {
         const clientData = await response.json();
-        console.log('Client data received:', clientData);
         setClient(clientData);
         // Set cases and payments from the response since they're included
         if (clientData.cases) {

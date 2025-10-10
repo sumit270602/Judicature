@@ -54,7 +54,6 @@ const ProfileSettingsSection: React.FC = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   
-  console.log('👤 Current auth user:', user);
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     emailNotifications: true,
     smsNotifications: false,
@@ -78,25 +77,18 @@ const ProfileSettingsSection: React.FC = () => {
     if (user) {
       fetchProfileData();
     } else {
-      console.log('❌ No user in auth context, skipping profile fetch');
       setLoading(false);
     }
   }, [user]);
 
   const fetchProfileData = async () => {
     try {
-      console.log('🔍 Fetching profile data...');
-      console.log('🔑 Token in localStorage:', localStorage.getItem('token') ? 'EXISTS' : 'MISSING');
-      console.log('👤 Auth user context:', user);
       
       const [profileResponse, settingsResponse] = await Promise.all([
         api.get('/users/profile'),
         api.get('/users/notification-settings').catch(() => ({ data: {} }))
       ]);
-      
-      console.log('✅ Profile response:', profileResponse.data);
-      console.log('✅ Settings response:', settingsResponse.data);
-      
+
       setProfile(profileResponse.data.user);
       setFormData({
         name: profileResponse.data.user.name || '',

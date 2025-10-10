@@ -1,3 +1,4 @@
+
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const User = require('../models/User');
@@ -82,7 +83,6 @@ passport.deserializeUser(async (id, done) => {
 
 // Initiate Google OAuth
 exports.initiateGoogleOAuth = (req, res, next) => {
-  console.log('Initiating Google OAuth with callback URL:', process.env.GOOGLE_CALLBACK_URL || "http://localhost:5000/api/auth/google/callback");
   passport.authenticate('google', {
     scope: ['profile', 'email']
   })(req, res, next);

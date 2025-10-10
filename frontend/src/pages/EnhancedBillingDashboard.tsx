@@ -176,7 +176,6 @@ const EnhancedBillingDashboard: React.FC = () => {
       const response = await api.get(`/enhanced-billing/${paymentId}/invoice`);
       toast.success('Invoice generated successfully');
       // You could open the invoice in a new tab or download it
-      console.log('Invoice data:', response.data.data);
     } catch (error: any) {
       console.error('Error generating invoice:', error);
       toast.error(error.response?.data?.message || 'Failed to generate invoice');

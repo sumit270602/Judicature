@@ -1,3 +1,4 @@
+
 const Notification = require('../models/Notification');
 const Case = require('../models/Case');
 const Hearing = require('../models/Hearing');
@@ -15,7 +16,6 @@ class NotificationService {
     // Schedule notification checks
     this.scheduleNotificationChecks();
     this.isInitialized = true;
-    console.log('Notification service initialized');
   }
 
   scheduleNotificationChecks() {
@@ -223,7 +223,6 @@ class NotificationService {
         }
       }
 
-      console.log(`Checked deadline reminders: ${upcomingCases.length} cases processed`);
     } catch (error) {
       console.error('Error checking deadline reminders:', error);
     }
@@ -266,7 +265,6 @@ class NotificationService {
         await hearing.save();
       }
 
-      console.log(`Checked court hearing reminders: ${upcomingHearings.length} hearings processed`);
     } catch (error) {
       if (error.message.includes('Cannot find module')) {
         // Hearing model doesn't exist yet, skip this check
@@ -282,7 +280,6 @@ class NotificationService {
         expiresAt: { $lt: new Date() }
       });
 
-      console.log(`Cleaned up ${result.deletedCount} expired notifications`);
     } catch (error) {
       console.error('Error cleaning up expired notifications:', error);
     }
@@ -299,7 +296,6 @@ class NotificationService {
       const user = await require('../models/User').findById(notification.recipient).select('name email');
       
       if (!user || !user.email) {
-        console.warn(`No email found for user ${notification.recipient}`);
         return;
       }
 
